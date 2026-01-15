@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:*; img-src 'self' data:">
+  <title>微信AI助手</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="http://localhost:3847/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">💬</div>
+        <span>微信AI助手</span>
+      </div>
+      
+      <ul class="nav-menu">
+        <li class="nav-item active" data-page="dashboard">
+          <span class="nav-icon">📊</span>
+          <span>仪表盘</span>
+        </li>
+        <li class="nav-item" data-page="messages">
+          <span class="nav-icon">💌</span>
+          <span>消息管理</span>
+        </li>
+        <li class="nav-item" data-page="monitor">
+          <span class="nav-icon">👁️</span>
+          <span>群聊监控</span>
+        </li>
+        <li class="nav-item" data-page="todos">
+          <span class="nav-icon">✅</span>
+          <span>待办事项</span>
+        </li>
+        <li class="nav-item" data-page="knowledge">
+          <span class="nav-icon">📚</span>
+          <span>知识库</span>
+        </li>
+        <li class="nav-item" data-page="ai-chat">
+          <span class="nav-icon">🤖</span>
+          <span>AI对话</span>
+        </li>
+        <li class="nav-item" data-page="settings">
+          <span class="nav-icon">⚙️</span>
+          <span>设置</span>
+        </li>
+        <li class="nav-item" data-page="help">
+          <span class="nav-icon">❓</span>
+          <span>帮助</span>
+        </li>
+      </ul>
+      
+      <div class="sidebar-footer">
+        <div class="status-indicator" id="ai-status">
+          <span class="status-dot"></span>
+          <span class="status-text">AI: 检测中...</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page active">
+        <div class="page-header">
+          <h1>欢迎使用微信AI助手</h1>
+          <p class="subtitle">智能管理您的微信消息，让工作更高效</p>
+        </div>
+
+        <!-- Demo Mode Notice -->
+        <div class="dashboard-demo-notice" id="dashboard-demo-notice">
+          <h3>⚠️ 演示模式</h3>
+          <p>当前显示的联系人、群聊和消息均为示例数据。这是因为尚未配置微信数据目录，无法读取真实的聊天记录。</p>
+          <p>要查看您的真实微信数据，请在设置中配置微信数据目录路径。</p>
+          <button class="btn" onclick="app.navigateTo('settings')">
+            <span>⚙️</span> 前往设置
+          </button>
+        </div>
+        
+        <div class="dashboard-grid">
+          <div class="stat-card">
+            <div class="stat-icon">💬</div>
+            <div class="stat-info">
+              <h3 id="stat-contacts">0</h3>
+              <p>联系人</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-info">
+              <h3 id="stat-groups">0</h3>
+              <p>群聊</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-info">
+              <h3 id="stat-todos">0</h3>
+              <p>待办事项</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📚</div>
+            <div class="stat-info">
+              <h3 id="stat-knowledge">0</h3>
+              <p>知识条目</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="quick-actions">
+          <h2>快速操作</h2>
+          <div class="action-buttons">
+            <button class="action-btn" onclick="app.navigateTo('messages')">
+              <span class="btn-icon">📥</span>
+              查看消息
+            </button>
+            <button class="action-btn" onclick="app.navigateTo('monitor')">
+              <span class="btn-icon">👁️</span>
+              开始监控
+            </button>
+            <button class="action-btn" onclick="app.navigateTo('ai-chat')">
+              <span class="btn-icon">🤖</span>
+              AI助手
+            </button>
+            <button class="action-btn" onclick="app.navigateTo('settings')">
+              <span class="btn-icon">⚙️</span>
+              配置设置
+            </button>
+          </div>
+        </div>
+
+        <div class="recent-activity">
+          <h2>最近活动</h2>
+          <div class="activity-list" id="activity-list">
+            <div class="activity-item">
+              <span class="activity-time">刚刚</span>
+              <span class="activity-text">应用已启动</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Messages Page -->
+      <div id="page-messages" class="page">
+        <div class="page-header">
+          <h1>消息管理</h1>
+          <p class="subtitle">查看和搜索微信历史消息</p>
+        </div>
+
+        <div class="messages-container">
+          <div class="chat-list">
+            <div class="search-box">
+              <input type="text" placeholder="搜索联系人或群聊..." id="chat-search">
+            </div>
+            <div class="chat-tabs">
+              <button class="chat-tab active" data-type="contacts">联系人</button>
+              <button class="chat-tab" data-type="groups">群聊</button>
+            </div>
+            <div class="chat-items" id="chat-items">
+              <!-- Chat items will be populated here -->
+            </div>
+          </div>
+          
+          <div class="message-view">
+            <div class="message-header" id="message-header">
+              <span>请选择一个会话</span>
+            </div>
+            <div class="message-list" id="message-list">
+              <div class="empty-state">
+                <span class="empty-icon">💬</span>
+                <p>选择左侧会话查看消息</p>
+              </div>
+            </div>
+            <div class="message-actions">
+              <button class="btn btn-primary" onclick="app.generateTodosFromChat()">
+                <span>✨</span> AI生成待办
+              </button>
+              <button class="btn btn-secondary" onclick="app.indexToKnowledge()">
+                <span>📚</span> 添加到知识库
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monitor Page -->
+      <div id="page-monitor" class="page">
+        <div class="page-header">
+          <h1>群聊监控</h1>
+          <p class="subtitle">实时监听指定群聊的新消息</p>
+        </div>
+
+        <div class="monitor-container">
+          <div class="monitor-config">
+            <h3>选择要监控的群聊</h3>
+            <div class="search-box" style="padding: 0 0 16px 0; border: none;">
+              <input type="text" placeholder="搜索群聊..." id="monitor-group-search">
+            </div>
+            <div class="group-checkboxes" id="group-checkboxes">
+              <!-- Groups will be populated here -->
+            </div>
+            <div class="monitor-controls">
+              <button class="btn btn-primary" id="btn-start-monitor" onclick="app.startMonitor()">
+                <span>▶️</span> 开始监控
+              </button>
+              <button class="btn btn-danger" id="btn-stop-monitor" onclick="app.stopMonitor()" disabled>
+                <span>⏹️</span> 停止监控
+              </button>
+            </div>
+          </div>
+
+          <div class="monitor-feed">
+            <h3>实时消息 <span class="live-indicator" id="live-indicator"></span></h3>
+            <div class="feed-list" id="feed-list">
+              <div class="empty-state">
+                <span class="empty-icon">👁️</span>
+                <p>选择群聊并开始监控以接收实时消息</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Todos Page -->
+      <div id="page-todos" class="page">
+        <div class="page-header">
+          <h1>待办事项</h1>
+          <p class="subtitle">管理您的任务和待办</p>
+        </div>
+
+        <div class="todos-container">
+          <div class="todo-input">
+            <input type="text" placeholder="添加新的待办事项..." id="new-todo-input">
+            <select id="new-todo-priority">
+              <option value="medium">普通</option>
+              <option value="high">紧急</option>
+              <option value="low">低优先级</option>
+            </select>
+            <button class="btn btn-primary" onclick="app.addTodo()">添加</button>
+          </div>
+
+          <div class="todo-filters">
+            <button class="filter-btn active" data-filter="all">全部</button>
+            <button class="filter-btn" data-filter="pending">待完成</button>
+            <button class="filter-btn" data-filter="completed">已完成</button>
+            <button class="filter-btn" data-filter="ai-generated">AI生成</button>
+          </div>
+
+          <div class="todo-list" id="todo-list">
+            <!-- Todos will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Knowledge Base Page -->
+      <div id="page-knowledge" class="page">
+        <div class="page-header">
+          <h1>知识库</h1>
+          <p class="subtitle">结构化存储聊天信息，支持AI检索</p>
+        </div>
+
+        <div class="knowledge-container">
+          <div class="knowledge-search">
+            <input type="text" placeholder="搜索知识库..." id="knowledge-search-input">
+            <button class="btn btn-primary" onclick="app.searchKnowledge()">搜索</button>
+          </div>
+
+          <div class="knowledge-stats" id="knowledge-stats">
+            <!-- Stats will be populated here -->
+          </div>
+
+          <div class="knowledge-query">
+            <h3>AI智能问答</h3>
+            <div class="query-input">
+              <input type="text" placeholder="基于知识库提问..." id="knowledge-query-input">
+              <button class="btn btn-primary" onclick="app.queryKnowledge()">提问</button>
+            </div>
+            <div class="query-result" id="query-result">
+              <!-- Query result will appear here -->
+            </div>
+          </div>
+
+          <div class="knowledge-items" id="knowledge-items">
+            <!-- Knowledge items will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Chat Page -->
+      <div id="page-ai-chat" class="page">
+        <div class="page-header">
+          <h1>AI对话</h1>
+          <p class="subtitle">与AI助手对话，获取智能帮助</p>
+        </div>
+
+        <div class="ai-chat-container">
+          <div class="chat-messages" id="ai-chat-messages">
+            <div class="ai-message">
+              <div class="message-avatar">🤖</div>
+              <div class="message-content">
+                你好！我是您的AI助手。我可以帮助您：
+                <ul>
+                  <li>分析聊天记录并提取待办事项</li>
+                  <li>回答基于知识库的问题</li>
+                  <li>总结长对话内容</li>
+                  <li>提供工作建议和帮助</li>
+                </ul>
+                请问有什么可以帮您的吗？
+              </div>
+            </div>
+          </div>
+          
+          <div class="chat-input-container">
+            <input type="text" placeholder="输入消息..." id="ai-chat-input" onkeypress="app.handleChatKeypress(event)">
+            <button class="btn btn-primary" onclick="app.sendAIMessage()">发送</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page">
+        <div class="page-header">
+          <h1>设置</h1>
+          <p class="subtitle">配置应用程序选项</p>
+        </div>
+
+        <div class="settings-container">
+          <div class="settings-section">
+            <h3>微信数据配置</h3>
+            <div class="setting-item">
+              <label>微信数据目录</label>
+              <div class="setting-input-group">
+                <input type="text" id="wechat-path" placeholder="选择微信数据目录..." readonly>
+                <button class="btn btn-secondary" onclick="app.selectWechatPath()">浏览</button>
+              </div>
+              <p class="setting-hint">通常位于：文档/WeChat Files/您的微信ID/</p>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>AI服务配置</h3>
+            <div class="ai-status-card" id="ai-status-card">
+              <!-- AI status will be shown here -->
+            </div>
+            
+            <div class="setting-item">
+              <label>Ollama服务地址</label>
+              <input type="text" id="ollama-url" placeholder="http://localhost:11434">
+              <p class="setting-hint">本地Ollama服务地址，默认为 http://localhost:11434</p>
+            </div>
+
+            <div class="setting-item">
+              <label>OpenAI API Key（备用）</label>
+              <input type="password" id="openai-key" placeholder="sk-...">
+              <p class="setting-hint">当本地Ollama不可用时，将使用OpenAI作为后备</p>
+            </div>
+
+            <div class="setting-item">
+              <label>AI模型</label>
+              <select id="ai-model">
+                <option value="">自动选择</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="app.saveAISettings()">保存AI设置</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Help Page -->
+      <div id="page-help" class="page">
+        <div class="page-header">
+          <h1>帮助文档</h1>
+          <p class="subtitle">了解如何使用微信AI助手</p>
+        </div>
+
+        <div class="help-container">
+          <div class="help-section">
+            <h2>🚀 快速入门</h2>
+            <div class="help-content">
+              <h3>1. 配置微信数据</h3>
+              <p>首先，您需要在<strong>设置</strong>页面配置微信数据目录。微信PC版会将聊天记录保存在本地，通常位于：</p>
+              <code>C:\Users\您的用户名\Documents\WeChat Files\您的微信ID\</code>
+              
+              <h3>2. 配置AI服务</h3>
+              <p>本应用优先使用本地Ollama模型，请确保：</p>
+              <ul>
+                <li>已安装 <a href="https://ollama.ai" target="_blank">Ollama</a></li>
+                <li>已下载至少一个模型（推荐：qwen、llama3 或 mistral）</li>
+                <li>Ollama服务正在运行</li>
+              </ul>
+              <p>如果没有本地模型，可以配置OpenAI API Key作为备用。</p>
+
+              <h3>3. 开始使用</h3>
+              <p>配置完成后，您可以：</p>
+              <ul>
+                <li>在<strong>消息管理</strong>页面查看历史消息</li>
+                <li>在<strong>群聊监控</strong>页面实时监听群消息</li>
+                <li>使用<strong>AI对话</strong>功能获取智能帮助</li>
+                <li>让AI自动从聊天中提取<strong>待办事项</strong></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="help-section">
+            <h2>💡 功能说明</h2>
+            <div class="help-content">
+              <h3>消息管理</h3>
+              <p>浏览和搜索您的微信历史消息。支持按联系人或群聊筛选，可以将重要消息添加到知识库。</p>
+
+              <h3>群聊监控</h3>
+              <p>实时监控指定群聊的新消息。适合需要及时关注重要群组动态的场景。</p>
+
+              <h3>待办事项</h3>
+              <p>手动添加或让AI从聊天内容中自动提取待办事项。支持优先级设置和完成状态跟踪。</p>
+
+              <h3>知识库</h3>
+              <p>将重要的聊天内容结构化存储，支持关键词搜索和AI智能问答。</p>
+
+              <h3>AI对话</h3>
+              <p>与AI助手自由对话，获取帮助、总结内容或回答问题。</p>
+            </div>
+          </div>
+
+          <div class="help-section">
+            <h2>❓ 常见问题</h2>
+            <div class="help-content">
+              <h3>Q: 为什么群聊和聊天信息是示例数据？</h3>
+              <p>A: 当您首次使用应用或尚未配置微信数据目录时，应用会显示示例数据以演示功能。要查看真实的微信数据，请在<strong>设置</strong>页面配置微信数据目录。微信PC版将聊天记录保存在本地SQLite数据库中，配置正确的路径后即可读取真实数据。</p>
+
+              <h3>Q: 为什么看不到微信消息？</h3>
+              <p>A: 请确保正确配置了微信数据目录，并且微信PC版已登录。消息数据库需要微信运行时才能读取最新数据。</p>
+
+              <h3>Q: AI功能不可用怎么办？</h3>
+              <p>A: 请检查Ollama服务是否运行，或配置有效的OpenAI API Key。</p>
+
+              <h3>Q: 如何保护隐私？</h3>
+              <p>A: 所有数据处理均在本地完成。如使用本地Ollama模型，数据完全不会上传。使用OpenAI时，仅必要的消息内容会被发送用于AI处理。</p>
+            </div>
+          </div>
+
+          <div class="help-section">
+            <h2>📞 技术支持</h2>
+            <div class="help-content">
+              <p>如有问题或建议，请访问项目页面提交Issue。</p>
+              <p>参考项目: <a href="https://github.com/TC999/WeChatMsg" target="_blank">WeChatMsg</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <p>加载中...</p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# Python dependencies for WeChat data reader
+# Optional: zstandard is only needed if WeChat uses compressed message content
+zstandard>=0.20.0
