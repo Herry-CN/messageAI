@@ -353,7 +353,7 @@ class WeChatDatabaseV4:
             pass
         return 0
 
-    def get_messages(self, username: str, limit: int = 100, offset: int = 0) -> Tuple[List[Message], int]:
+    def get_messages(self, username: str, limit: int = 100, offset: int = 0, start_time: int = 0) -> Tuple[List[Message], int]:
         """
         Get messages for a specific chat
         WeChat 4.0 uses table name format: Msg_{md5(username)}
@@ -390,27 +390,43 @@ class WeChatDatabaseV4:
                 # Note: table_name is validated above to only contain safe characters
                 # Try to get messages with Name2Id join for sender info
                 try:
-                    cursor.execute(f"""
+                    query = f"""
                         SELECT msg.local_id, msg.server_id, msg.local_type, 
                                Name2Id.user_name as sender_username,
                                msg.create_time, msg.message_content, 
                                CASE WHEN Name2Id.user_name = ? THEN 1 ELSE 0 END as is_sender
                         FROM {table_name} as msg
                         LEFT JOIN Name2Id ON msg.real_sender_id = Name2Id.rowid
-                        ORDER BY msg.create_time DESC
-                        LIMIT ? OFFSET ?
-                    """, (self._get_my_wxid(), limit, offset))
+                    """
+                    params = [self._get_my_wxid()]
+                    
+                    if start_time > 0:
+                        query += " WHERE msg.create_time >= ?"
+                        params.append(start_time)
+                        
+                    query += " ORDER BY msg.create_time DESC LIMIT ? OFFSET ?"
+                    params.extend([limit, offset])
+                    
+                    cursor.execute(query, params)
                 except sqlite3.OperationalError:
                     # Fallback without Name2Id join
-                    cursor.execute(f"""
+                    query = f"""
                         SELECT local_id, server_id, local_type,
                                '' as sender_username,
                                create_time, message_content,
                                0 as is_sender
                         FROM {table_name}
-                        ORDER BY create_time DESC
-                        LIMIT ? OFFSET ?
-                    """, (limit, offset))
+                    """
+                    params = []
+                    
+                    if start_time > 0:
+                        query += " WHERE create_time >= ?"
+                        params.append(start_time)
+                        
+                    query += " ORDER BY create_time DESC LIMIT ? OFFSET ?"
+                    params.extend([limit, offset])
+                    
+                    cursor.execute(query, params)
 
                 rows = cursor.fetchall()
 
@@ -534,13 +550,14 @@ def main():
         username = sys.argv[3]
         limit = int(sys.argv[4]) if len(sys.argv) > 4 else 100
         offset = int(sys.argv[5]) if len(sys.argv) > 5 else 0
+        start_time = int(sys.argv[6]) if len(sys.argv) > 6 else 0
         
         reader = WeChatDatabaseV4(db_dir)
         if reader.init_database():
             reader.get_contacts()  # Load contacts for name mapping
             reader.get_groups()
             contact_map = {c.wxid: c.remark or c.nickname for c in reader.contacts_map.values()}
-            messages, total = reader.get_messages(username, limit, offset)
+            messages, total = reader.get_messages(username, limit, offset, start_time)
             print(json.dumps({
                 'messages': [m.to_dict(contact_map) for m in messages],
                 'total': total,

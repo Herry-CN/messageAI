@@ -157,18 +157,26 @@ class AIService {
   }
 
   async extractTodos(chatContent) {
-    const prompt = `请分析以下聊天内容，提取其中的待办事项。返回JSON数组格式，每个待办包含：
-- title: 待办标题
-- description: 详细描述
+    const prompt = `请分析以下聊天内容，提取其中的“重要信息记录”。重要信息主要包括但不限于：
+- 招聘信息（岗位、要求、联系方式等）
+- 求购信息（需求物品或服务、预算、时间要求等）
+- 寻找资源（寻找合作伙伴、渠道、供应商、场地等）
+- 寻找咨询老师或专家（咨询方向、领域、联系方式等）
+
+请将识别出的每条重要信息整理为JSON数组格式，每个元素包含：
+- title: 标题（简要概括这条重要信息）
+- description: 详细描述（尽量复述关键细节，便于后续查阅）
 - priority: 优先级 (high/medium/low)
-- dueDate: 截止日期（如果提到）
+- dueDate: 截止日期或时间点（如果聊天中提到了具体时间，如“本周五前”、“3月1日”等，可以用字符串原样写出；如果未提到则为 null）
 
 聊天内容：
 ${chatContent}
 
-请只返回JSON数组，不要其他内容。如果没有待办事项，返回空数组[]。`;
+请只返回JSON数组，不要其他内容。如果没有符合上述类型的“重要信息记录”，请返回空数组[]。`;
 
+    console.log('[AIService.extractTodos] prompt preview =', prompt.substring(0, 200));
     const response = await this.chat(prompt);
+    console.log('[AIService.extractTodos] raw response preview =', String(response).substring(0, 200));
     
     try {
       // Try to parse JSON from response with validation
@@ -180,7 +188,7 @@ ${chatContent}
           return [];
         }
         // Filter and validate each todo item
-        return parsed.filter(item => 
+        const filtered = parsed.filter(item => 
           item && 
           typeof item === 'object' &&
           typeof item.title === 'string' &&
@@ -191,6 +199,8 @@ ${chatContent}
           priority: ['high', 'medium', 'low'].includes(item.priority) ? item.priority : 'medium',
           dueDate: item.dueDate || null
         }));
+        console.log('[AIService.extractTodos] parsed items =', parsed.length, 'filtered items =', filtered.length);
+        return filtered;
       }
       return [];
     } catch {

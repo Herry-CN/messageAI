@@ -699,24 +699,46 @@ class WeChatAIApp {
   }
 
   async generateTodosFromChat() {
-    if (this.messages.length === 0) {
+    if (!this.currentChatId) {
       this.showToast('请先选择一个会话', 'warning');
       return;
     }
 
     this.showLoading(true);
     try {
+      // Calculate timestamp for 1 hour ago (seconds)
+      const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+      
+      // Fetch messages from the last hour
+      // Use a large limit to ensure we get all of them
+      const data = await this.api(`/api/wechat/messages/${this.currentChatId}?limit=1000&startTime=${oneHourAgo}`);
+      const recentMessages = Array.isArray(data.messages) ? data.messages : [];
+      
+      console.log(`[Client] generateTodosFromChat fetched ${recentMessages.length} messages from last hour`);
+
+      if (recentMessages.length === 0) {
+        this.showToast('过去一小时内没有消息', 'info');
+        this.showLoading(false);
+        return;
+      }
+
+      // Update view to show what's being analyzed
+      this.messages = recentMessages;
+      this.renderMessages();
+
       const newTodos = await this.api('/api/todos/generate-from-chat', {
         method: 'POST',
-        body: JSON.stringify({ messages: this.messages.slice(-20) })
+        body: JSON.stringify({ messages: recentMessages })
       });
       
       this.todos = [...this.todos, ...newTodos];
       this.renderTodos();
       this.updateDashboard();
-      this.showToast(`生成了 ${newTodos.length} 个待办事项`, 'success');
-    } catch {
-      this.showToast('AI生成待办失败，请检查AI配置', 'error');
+      this.showToast(`提取了 ${newTodos.length} 条重要信息`, 'success');
+      console.log('[Client] generateTodosFromChat newTodos =', newTodos);
+    } catch (error) {
+      console.error(error);
+      this.showToast('AI提取重要信息失败，请检查AI配置', 'error');
     }
     this.showLoading(false);
   }

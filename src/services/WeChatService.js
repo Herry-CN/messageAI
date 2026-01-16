@@ -290,7 +290,7 @@ class WeChatService {
     return this.groupsCache;
   }
 
-  async getMessages(chatId, limit = 100, offset = 0) {
+  async getMessages(chatId, limit = 100, offset = 0, startTime = 0) {
     if (!this.isConfigured) {
       const sampleMessages = this.generateSampleMessages(chatId, limit);
       return {
@@ -305,7 +305,8 @@ class WeChatService {
         this.dataPath,
         chatId,
         String(limit),
-        String(offset)
+        String(offset),
+        String(startTime)
       ]);
 
       if (result && Array.isArray(result.messages)) {

@@ -85,13 +85,14 @@ class TodoService {
       return [];
     }
 
-    // Combine messages into text for analysis
+    console.log('[TodoService] generateFromChat messages length =', messages.length);
     const chatContent = messages
       .map(m => `${m.sender}: ${m.content}`)
       .join('\n');
 
-    // Use AI to extract todos
+    console.log('[TodoService] generateFromChat chatContent sample =', chatContent.substring(0, 200));
     const extractedTodos = await aiService.extractTodos(chatContent);
+    console.log('[TodoService] generateFromChat extractedTodos =', extractedTodos);
 
     // Create todo items
     const createdTodos = [];

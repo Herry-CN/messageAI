@@ -129,8 +129,8 @@ app.get('/api/wechat/groups', async (req, res) => {
 app.get('/api/wechat/messages/:chatId', async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { limit = 100, offset = 0 } = req.query;
-    const messages = await wechatService.getMessages(chatId, parseInt(limit), parseInt(offset));
+    const { limit = 100, offset = 0, startTime = 0 } = req.query;
+    const messages = await wechatService.getMessages(chatId, parseInt(limit), parseInt(offset), parseInt(startTime));
     res.json(messages);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -200,7 +200,9 @@ app.delete('/api/todos/:id', (req, res) => {
 app.post('/api/todos/generate-from-chat', async (req, res) => {
   try {
     const { messages } = req.body;
+    console.log('[Server] /api/todos/generate-from-chat messages length =', messages ? messages.length : 0);
     const todos = await todoService.generateFromChat(messages, aiService);
+    console.log('[Server] /api/todos/generate-from-chat todos length =', todos.length);
     res.json(todos);
   } catch (error) {
     res.status(500).json({ error: error.message });
