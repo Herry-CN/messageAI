@@ -143,7 +143,7 @@ class TodoService {
         ...todoData,
         groupName: chatName,
         source: 'ai-generated',
-        sourceMessage: chatContent.substring(0, 200)
+        sourceMessage: chatContent
       });
       createdTodos.push(todo);
     }

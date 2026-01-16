@@ -1171,7 +1171,7 @@ class WeChatAIApp {
       </div>
       <div>
         <h4 style="margin:0 0 8px 0;">源消息片段</h4>
-        <pre style="white-space: pre-wrap; background: var(--bg-light); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">${sourcePreview}</pre>
+        <pre class="source-preview">${sourcePreview}</pre>
       </div>
     `;
 

@@ -223,6 +223,17 @@ body {
   justify-content: flex-end;
 }
 
+.source-preview {
+  white-space: pre-wrap;
+  background: var(--bg-light);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  max-height: 300px;
+  overflow: auto;
+  font-family: inherit;
+}
+
 /* Main Content */
 .main-content {
   flex: 1;
