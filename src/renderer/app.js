@@ -35,6 +35,7 @@ class WeChatAIApp {
     this.socket = null;
     this.chatHistory = [];
     this.isUsingDemoData = true; // Track if using demo/sample data
+    this.messagePageLimit = 50;
 
     this.init();
   }
@@ -46,6 +47,15 @@ class WeChatAIApp {
         this.serverPort = await window.electronAPI.getServerPort();
       } catch (e) {
         console.log('Using default server port');
+      }
+    }
+
+    // Load message page limit from localStorage
+    const savedLimit = localStorage.getItem('messagePageLimit');
+    if (savedLimit) {
+      const n = parseInt(savedLimit, 10);
+      if (!Number.isNaN(n) && n > 0 && n <= 500) {
+        this.messagePageLimit = n;
       }
     }
 
@@ -359,7 +369,8 @@ class WeChatAIApp {
     document.getElementById('message-header').textContent = chat?.name || '未知会话';
 
     try {
-      const data = await this.api(`/api/wechat/messages/${chatId}?limit=50`);
+      const limit = this.messagePageLimit || 50;
+      const data = await this.api(`/api/wechat/messages/${chatId}?limit=${limit}`);
       this.messages = Array.isArray(data.messages) ? data.messages : [];
       this.renderMessages();
     } catch {
@@ -926,6 +937,11 @@ class WeChatAIApp {
     if (savedPath && input) {
       input.value = savedPath;
     }
+
+    const messageLimitInput = document.getElementById('message-limit');
+    if (messageLimitInput) {
+      messageLimitInput.value = this.messagePageLimit;
+    }
   }
 
   async checkAIStatus() {
@@ -1073,6 +1089,21 @@ class WeChatAIApp {
     } catch (error) {
       console.error('Failed to quit app:', error);
     }
+  }
+
+  async saveMessageSettings() {
+    const input = document.getElementById('message-limit');
+    if (!input) return;
+
+    const value = parseInt(input.value, 10);
+    if (Number.isNaN(value) || value <= 0 || value > 500) {
+      this.showToast('请输入 1 到 500 之间的数字', 'warning');
+      return;
+    }
+
+    this.messagePageLimit = value;
+    localStorage.setItem('messagePageLimit', String(value));
+    this.showToast('消息显示条数已保存', 'success');
   }
 
   // Utilities

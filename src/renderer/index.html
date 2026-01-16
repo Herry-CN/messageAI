@@ -391,6 +391,16 @@
 
             <button class="btn btn-primary" onclick="app.saveAISettings()">保存AI设置</button>
           </div>
+
+          <div class="settings-section">
+            <h3>消息显示配置</h3>
+            <div class="setting-item">
+              <label>消息管理页面每次加载的消息条数</label>
+              <input type="number" id="message-limit" min="1" max="500" placeholder="50">
+              <p class="setting-hint">用于“消息管理”中右侧消息列表，建议 20~200 条。</p>
+              <button class="btn btn-primary" onclick="app.saveMessageSettings()">保存消息设置</button>
+            </div>
+          </div>
         </div>
       </div>
 
