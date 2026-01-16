@@ -168,6 +168,8 @@ class AIService {
 - description: 详细描述（尽量复述关键细节，便于后续查阅）
 - priority: 优先级 (high/medium/low)
 - dueDate: 截止日期或时间点（如果聊天中提到了具体时间，如“本周五前”、“3月1日”等，可以用字符串原样写出；如果未提到则为 null）
+- sender: 该信息的发送者（从消息开头的 [Sender] 中提取，如果没有则为 null）
+- messageTime: 消息发送时间（从消息开头的 [Time] 中提取，如 2023/1/1 12:00:00，如果没有则为 null）
 
 聊天内容：
 ${chatContent}
@@ -197,7 +199,9 @@ ${chatContent}
           title: String(item.title).substring(0, 200),
           description: item.description ? String(item.description).substring(0, 1000) : '',
           priority: ['high', 'medium', 'low'].includes(item.priority) ? item.priority : 'medium',
-          dueDate: item.dueDate || null
+          dueDate: item.dueDate || null,
+          sender: item.sender || null,
+          messageTime: item.messageTime || null
         }));
         console.log('[AIService.extractTodos] parsed items =', parsed.length, 'filtered items =', filtered.length);
         return filtered;

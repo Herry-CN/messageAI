@@ -199,9 +199,9 @@ app.delete('/api/todos/:id', (req, res) => {
 
 app.post('/api/todos/generate-from-chat', async (req, res) => {
   try {
-    const { messages } = req.body;
+    const { messages, chatName } = req.body;
     console.log('[Server] /api/todos/generate-from-chat messages length =', messages ? messages.length : 0);
-    const todos = await todoService.generateFromChat(messages, aiService);
+    const todos = await todoService.generateFromChat(messages, aiService, chatName);
     console.log('[Server] /api/todos/generate-from-chat todos length =', todos.length);
     res.json(todos);
   } catch (error) {

@@ -613,6 +613,11 @@ class WeChatAIApp {
       const escapedPriority = escapeHtml(todo.priority);
       const dueDateStr = todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : '';
       
+      // New fields display
+      const groupName = todo.groupName ? `<span class="meta-tag group-tag">📁 ${escapeHtml(todo.groupName)}</span>` : '';
+      const sender = todo.sender ? `<span class="meta-tag sender-tag">👤 ${escapeHtml(todo.sender)}</span>` : '';
+      const timeStr = todo.messageTime ? `<span class="meta-tag time-tag">🕒 ${escapeHtml(todo.messageTime)}</span>` : '';
+
       return `
         <div class="todo-item ${todo.completed ? 'completed' : ''}">
           <input type="checkbox" class="todo-checkbox" 
@@ -623,7 +628,10 @@ class WeChatAIApp {
             <div class="todo-meta">
               <span class="priority-badge priority-${escapedPriority}">${priorityLabel}</span>
               ${todo.source === 'ai-generated' ? '<span class="source-badge">AI生成</span>' : ''}
-              ${todo.dueDate ? `<span>截止: ${dueDateStr}</span>` : ''}
+              ${dueDateStr ? `<span>截止: ${dueDateStr}</span>` : ''}
+              ${timeStr}
+              ${groupName}
+              ${sender}
             </div>
           </div>
           <div class="todo-actions">
@@ -748,9 +756,17 @@ class WeChatAIApp {
         return;
       }
 
+      // Get current chat name
+      const items = this.currentChatType === 'contacts' ? this.contacts : this.groups;
+      const currentChat = items.find(i => i.id === this.currentChatId);
+      const chatName = currentChat ? currentChat.name : '未知会话';
+
       const newTodos = await this.api('/api/todos/generate-from-chat', {
         method: 'POST',
-        body: JSON.stringify({ messages: textMessages })
+        body: JSON.stringify({ 
+          messages: textMessages,
+          chatName: chatName
+        })
       });
       
       this.todos = [...this.todos, ...newTodos];

@@ -42,6 +42,12 @@ class TodoService {
       completed: false,
       source: todoData.source || 'manual',
       sourceMessage: todoData.sourceMessage || null,
+      
+      // New fields
+      groupName: todoData.groupName || null,
+      sender: todoData.sender || null,
+      messageTime: todoData.messageTime || null,
+
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -90,14 +96,17 @@ class TodoService {
     return todo;
   }
 
-  async generateFromChat(messages, aiService) {
+  async generateFromChat(messages, aiService, chatName) {
     if (!messages || messages.length === 0) {
       return [];
     }
 
     console.log('[TodoService] generateFromChat messages length =', messages.length);
     const chatContent = messages
-      .map(m => `${m.sender}: ${m.content}`)
+      .map(m => {
+        const timeStr = new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false });
+        return `[${timeStr}] [${m.sender}]: ${m.content}`;
+      })
       .join('\n');
 
     console.log('[TodoService] generateFromChat chatContent sample =', chatContent.substring(0, 200));
@@ -109,6 +118,7 @@ class TodoService {
     for (const todoData of extractedTodos) {
       const todo = this.create({
         ...todoData,
+        groupName: chatName, // Store group/chat name
         source: 'ai-generated',
         sourceMessage: chatContent.substring(0, 200)
       });
