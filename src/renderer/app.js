@@ -742,11 +742,7 @@ class WeChatAIApp {
         return;
       }
 
-      // Update view to show what's being analyzed
-      this.messages = recentMessages;
-      this.renderMessages();
-
-      // Filter for text messages only
+      // Filter for text messages only (do not change current view messages)
       const textMessages = recentMessages.filter(msg => msg.type === 'text');
       console.log(`[Client] generateTodosFromChat filtered to ${textMessages.length} text messages`);
 

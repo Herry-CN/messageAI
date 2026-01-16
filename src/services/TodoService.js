@@ -102,9 +102,33 @@ class TodoService {
     }
 
     console.log('[TodoService] generateFromChat messages length =', messages.length);
-    const chatContent = messages
+
+    const existingKeys = new Set(
+      this.todos
+        .filter(t => t.groupName === chatName && t.sender && t.messageTime)
+        .map(t => `${t.groupName}||${t.sender}||${t.messageTime}`)
+    );
+
+    const filteredMessages = [];
+    for (const m of messages) {
+      const timeStr = new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false });
+      const sender = m.sender || '';
+      const key = `${chatName}||${sender}||${timeStr}`;
+      if (existingKeys.has(key)) {
+        console.log('[TodoService] skip message already in todos:', key);
+        continue;
+      }
+      filteredMessages.push({ ...m, _timeStr: timeStr });
+    }
+
+    if (filteredMessages.length === 0) {
+      console.log('[TodoService] generateFromChat all messages skipped due to existing todos');
+      return [];
+    }
+
+    const chatContent = filteredMessages
       .map(m => {
-        const timeStr = new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false });
+        const timeStr = m._timeStr || new Date(m.timestamp).toLocaleString('zh-CN', { hour12: false });
         return `[${timeStr}] [${m.sender}]: ${m.content}`;
       })
       .join('\n');
@@ -113,12 +137,11 @@ class TodoService {
     const extractedTodos = await aiService.extractTodos(chatContent);
     console.log('[TodoService] generateFromChat extractedTodos =', extractedTodos);
 
-    // Create todo items
     const createdTodos = [];
     for (const todoData of extractedTodos) {
       const todo = this.create({
         ...todoData,
-        groupName: chatName, // Store group/chat name
+        groupName: chatName,
         source: 'ai-generated',
         sourceMessage: chatContent.substring(0, 200)
       });
