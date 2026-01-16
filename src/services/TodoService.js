@@ -1,8 +1,14 @@
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
+
+const DATA_DIR = path.join(__dirname, '..', '..', 'data');
+const TODO_FILE = path.join(DATA_DIR, 'todos.json');
 
 class TodoService {
   constructor() {
     this.todos = [];
+    this.loadFromDisk();
   }
 
   getAll() {
@@ -41,6 +47,7 @@ class TodoService {
     };
 
     this.todos.push(todo);
+    this.saveToDisk();
     return todo;
   }
 
@@ -56,6 +63,7 @@ class TodoService {
       updatedAt: new Date().toISOString()
     };
 
+    this.saveToDisk();
     return this.todos[index];
   }
 
@@ -66,6 +74,7 @@ class TodoService {
     }
 
     this.todos.splice(index, 1);
+    this.saveToDisk();
     return { success: true };
   }
 
@@ -77,6 +86,7 @@ class TodoService {
 
     todo.completed = !todo.completed;
     todo.updatedAt = new Date().toISOString();
+    this.saveToDisk();
     return todo;
   }
 
@@ -130,6 +140,34 @@ class TodoService {
       overdue,
       byPriority
     };
+  }
+
+  loadFromDisk() {
+    try {
+      if (!fs.existsSync(TODO_FILE)) {
+        this.todos = [];
+        return;
+      }
+      const content = fs.readFileSync(TODO_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        this.todos = parsed;
+      } else {
+        this.todos = [];
+      }
+    } catch {
+      this.todos = [];
+    }
+  }
+
+  saveToDisk() {
+    try {
+      if (!fs.existsSync(DATA_DIR)) {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+      }
+      fs.writeFileSync(TODO_FILE, JSON.stringify(this.todos, null, 2), 'utf-8');
+    } catch {
+    }
   }
 }
 
