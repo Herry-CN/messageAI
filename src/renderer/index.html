@@ -415,6 +415,12 @@
               <p class="setting-hint">用于控制批量为多群生成待办时的间隔，避免数据库与AI拥塞。</p>
             </div>
 
+            <div class="setting-item">
+              <label>自动分析选中群的间隔（分钟）</label>
+              <input type="number" id="auto-batch-interval-minutes" min="5" max="1440" placeholder="5">
+              <p class="setting-hint">用于按间隔自动分析选中群消息并生成待办，最小 5 分钟。</p>
+            </div>
+
             <button class="btn btn-primary" onclick="app.saveMessageSettings()">保存消息与分析设置</button>
             </div>
           </div>
