@@ -193,7 +193,7 @@ class WeChatAIApp {
     }
   }
 
-  setupWebSocket() {
+  setupWebSocket(retryCount = 0) {
     try {
       if (typeof io !== 'undefined') {
         console.log(`Attempting to connect to WebSocket at http://localhost:${this.serverPort}`);
@@ -228,6 +228,11 @@ class WeChatAIApp {
           }
         });
       } else {
+        if (retryCount < 20) {
+          console.log(`Socket.IO client not loaded yet, retrying (${retryCount + 1}/20)...`);
+          setTimeout(() => this.setupWebSocket(retryCount + 1), 500);
+          return;
+        }
         console.warn('Socket.IO client not loaded, falling back to polling if needed');
         this.pollForMessages();
       }
@@ -343,11 +348,10 @@ class WeChatAIApp {
 
     try {
       const data = await this.api(`/api/wechat/messages/${chatId}?limit=50`);
-      this.messages = data.messages || [];
+      this.messages = Array.isArray(data.messages) ? data.messages : [];
       this.renderMessages();
     } catch {
-      // Use sample messages
-      this.messages = this.generateSampleMessages(chatId, 20);
+      this.messages = [];
       this.renderMessages();
     }
   }

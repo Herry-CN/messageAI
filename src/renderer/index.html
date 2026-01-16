@@ -3,10 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:*; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' http://localhost:*; style-src 'self' 'unsafe-inline'; connect-src 'self' http://localhost:*; img-src 'self' data:">
   <title>微信AI助手</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="http://localhost:3847/socket.io/socket.io.js"></script>
+  <script>
+    // Dynamically load Socket.IO script
+    (async function() {
+      let port = 3847;
+      if (window.electronAPI) {
+        try {
+          port = await window.electronAPI.getServerPort();
+        } catch (e) {
+          console.error('Failed to get server port:', e);
+        }
+      }
+      
+      const script = document.createElement('script');
+      script.src = `http://localhost:${port}/socket.io/socket.io.js`;
+      document.head.appendChild(script);
+    })();
+  </script>
 </head>
 <body>
   <div id="app">

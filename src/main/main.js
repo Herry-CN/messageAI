@@ -2,13 +2,33 @@ const { app, BrowserWindow, ipcMain, Menu, Tray, dialog, nativeImage } = require
 const path = require('path');
 const { fork } = require('child_process');
 const fs = require('fs');
+const net = require('net');
 
 let mainWindow;
 let tray;
 let serverProcess;
 
 // Server port
-const SERVER_PORT = 3847;
+let SERVER_PORT = 3847;
+
+function findAvailablePort(startPort) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(findAvailablePort(startPort + 1));
+      } else {
+        reject(err);
+      }
+    });
+    server.listen(startPort, () => {
+      server.close(() => {
+        resolve(startPort);
+      });
+    });
+  });
+}
 
 function createWindow() {
   const iconPath = path.join(__dirname, '../../public/icon.png');
@@ -91,7 +111,15 @@ function createTray() {
   }
 }
 
-function startServer() {
+async function startServer() {
+  try {
+    SERVER_PORT = await findAvailablePort(3847);
+    console.log(`Found available port: ${SERVER_PORT}`);
+  } catch (err) {
+    console.error('Failed to find available port:', err);
+    SERVER_PORT = 3847; // Fallback
+  }
+
   const serverPath = path.join(__dirname, '../server/index.js');
   serverProcess = fork(serverPath, [], {
     env: { ...process.env, PORT: SERVER_PORT }
@@ -132,8 +160,8 @@ ipcMain.handle('select-database-file', async () => {
 });
 
 // App lifecycle
-app.whenReady().then(() => {
-  startServer();
+app.whenReady().then(async () => {
+  await startServer();
   createWindow();
 
   app.on('activate', () => {

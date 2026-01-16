@@ -307,21 +307,35 @@ class WeChatService {
         String(limit),
         String(offset)
       ]);
-      
-      if (result.messages && result.messages.length > 0) {
-        return result;
+
+      if (result && Array.isArray(result.messages)) {
+        const total = typeof result.total === 'number'
+          ? result.total
+          : result.messages.length;
+        const hasMore = typeof result.hasMore === 'boolean'
+          ? result.hasMore
+          : offset + result.messages.length < total;
+
+        return {
+          messages: result.messages,
+          total,
+          hasMore
+        };
       }
+
+      return {
+        messages: [],
+        total: 0,
+        hasMore: false
+      };
     } catch (error) {
       console.error('Failed to get messages from database:', error.message);
+      return {
+        messages: [],
+        total: 0,
+        hasMore: false
+      };
     }
-
-    // Fallback to sample messages
-    const sampleMessages = this.generateSampleMessages(chatId, limit);
-    return {
-      messages: sampleMessages,
-      total: 1000,
-      hasMore: offset + limit < 1000
-    };
   }
 
   generateSampleMessages(chatId, count) {
