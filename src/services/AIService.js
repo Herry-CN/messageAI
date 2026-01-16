@@ -8,6 +8,10 @@ class AIService {
     this.openaiKey = null;
     this.model = null;
     this.isReady = false;
+    this.todoPromptCategories = `- 招聘信息（岗位、要求、联系方式等）
+- 求购信息（需求物品或服务、预算、时间要求等）
+- 寻找资源（寻找合作伙伴、渠道、供应商、场地等）
+- 寻找咨询老师或专家（咨询方向、领域、联系方式等）`;
   }
 
   async getStatus() {
@@ -20,7 +24,8 @@ class AIService {
       isReady: this.isReady,
       ollamaAvailable,
       openaiConfigured,
-      ollamaModels: ollamaAvailable ? await this.getOllamaModels() : []
+      ollamaModels: ollamaAvailable ? await this.getOllamaModels() : [],
+      todoPromptCategories: this.todoPromptCategories
     };
   }
 
@@ -33,6 +38,9 @@ class AIService {
     }
     if (config.model) {
       this.model = config.model;
+    }
+    if (typeof config.todoPromptCategories === 'string') {
+      this.todoPromptCategories = config.todoPromptCategories;
     }
 
     // Auto-detect best provider
@@ -157,11 +165,13 @@ class AIService {
   }
 
   async extractTodos(chatContent) {
-    const prompt = `请分析以下聊天内容，提取其中的“重要信息记录”。重要信息主要包括但不限于：
-- 招聘信息（岗位、要求、联系方式等）
+    const categoriesText = this.todoPromptCategories || `- 招聘信息（岗位、要求、联系方式等）
 - 求购信息（需求物品或服务、预算、时间要求等）
 - 寻找资源（寻找合作伙伴、渠道、供应商、场地等）
-- 寻找咨询老师或专家（咨询方向、领域、联系方式等）
+- 寻找咨询老师或专家（咨询方向、领域、联系方式等）`;
+
+    const prompt = `请分析以下聊天内容，提取其中的“重要信息记录”。重要信息主要包括但不限于：
+${categoriesText}
 
 请将识别出的每条重要信息整理为JSON数组格式，每个元素包含：
 - title: 标题（简要概括这条重要信息）

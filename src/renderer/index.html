@@ -382,6 +382,13 @@
               </select>
             </div>
 
+            <div class="setting-item">
+              <label>AI提示词分类（用于提取重要信息）</label>
+              <textarea id="ai-todo-prompt" rows="4" style="width: 100%; resize: vertical;"></textarea>
+              <p class="setting-hint">一行一个类别，可根据需要调整。仅修改此区域，其余提示逻辑保持不变。</p>
+              <button class="btn btn-secondary" onclick="app.resetAIPrompt()">恢复默认提示词</button>
+            </div>
+
             <button class="btn btn-primary" onclick="app.saveAISettings()">保存AI设置</button>
           </div>
         </div>

@@ -991,6 +991,11 @@ class WeChatAIApp {
           status.ollamaModels.map(m => `<option value="${m}">${m}</option>`).join('');
         modelSelect.value = currentValue || status.model || '';
       }
+
+      const promptTextarea = document.getElementById('ai-todo-prompt');
+      if (promptTextarea && status.todoPromptCategories) {
+        promptTextarea.value = status.todoPromptCategories;
+      }
     }
   }
 
@@ -1030,6 +1035,7 @@ class WeChatAIApp {
     const ollamaUrl = document.getElementById('ollama-url').value.trim();
     const openaiKey = document.getElementById('openai-key').value.trim();
     const model = document.getElementById('ai-model').value;
+    const todoPrompt = document.getElementById('ai-todo-prompt').value;
 
     try {
       await this.api('/api/ai/config', {
@@ -1037,7 +1043,8 @@ class WeChatAIApp {
         body: JSON.stringify({
           ollamaUrl: ollamaUrl || undefined,
           openaiKey: openaiKey || undefined,
-          model: model || undefined
+          model: model || undefined,
+          todoPromptCategories: todoPrompt || undefined
         })
       });
       await this.checkAIStatus();
@@ -1045,6 +1052,15 @@ class WeChatAIApp {
     } catch {
       this.showToast('保存失败', 'error');
     }
+  }
+
+  resetAIPrompt() {
+    const promptTextarea = document.getElementById('ai-todo-prompt');
+    if (!promptTextarea) return;
+    promptTextarea.value = `- 招聘信息（岗位、要求、联系方式等）
+- 求购信息（需求物品或服务、预算、时间要求等）
+- 寻找资源（寻找合作伙伴、渠道、供应商、场地等）
+- 寻找咨询老师或专家（咨询方向、领域、联系方式等)`;
   }
 
   async quitApp() {
