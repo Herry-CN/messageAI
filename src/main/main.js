@@ -159,6 +159,11 @@ ipcMain.handle('select-database-file', async () => {
   return result.filePaths[0] || null;
 });
 
+ipcMain.handle('quit-app', () => {
+  app.isQuitting = true;
+  app.quit();
+});
+
 // App lifecycle
 app.whenReady().then(async () => {
   await startServer();

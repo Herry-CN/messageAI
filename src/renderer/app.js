@@ -1047,6 +1047,18 @@ class WeChatAIApp {
     }
   }
 
+  async quitApp() {
+    try {
+      if (window.electronAPI && window.electronAPI.quitApp) {
+        await window.electronAPI.quitApp();
+      } else {
+        window.close();
+      }
+    } catch (error) {
+      console.error('Failed to quit app:', error);
+    }
+  }
+
   // Utilities
   showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');

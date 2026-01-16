@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectWechatPath: () => ipcRenderer.invoke('select-wechat-path'),
   selectDatabaseFile: () => ipcRenderer.invoke('select-database-file'),
   onNavigate: (callback) => ipcRenderer.on('navigate', (_, page) => callback(page)),
-  onServerMessage: (callback) => ipcRenderer.on('server-message', (_, message) => callback(message))
+  onServerMessage: (callback) => ipcRenderer.on('server-message', (_, message) => callback(message)),
+  quitApp: () => ipcRenderer.invoke('quit-app')
 });

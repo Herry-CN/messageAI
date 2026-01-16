@@ -149,6 +149,24 @@ body {
   background-color: var(--danger-color);
 }
 
+.sidebar-exit-btn {
+  margin-top: var(--spacing-md);
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-exit-btn:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fecaca;
+}
+
 /* Main Content */
 .main-content {
   flex: 1;
