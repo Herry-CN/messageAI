@@ -36,6 +36,7 @@ class WeChatAIApp {
     this.chatHistory = [];
     this.isUsingDemoData = true; // Track if using demo/sample data
     this.messagePageLimit = 50;
+    this.aiAnalysisHours = 1;
 
     this.init();
   }
@@ -56,6 +57,14 @@ class WeChatAIApp {
       const n = parseInt(savedLimit, 10);
       if (!Number.isNaN(n) && n > 0 && n <= 500) {
         this.messagePageLimit = n;
+      }
+    }
+
+    const savedHours = localStorage.getItem('aiAnalysisHours');
+    if (savedHours) {
+      const h = parseInt(savedHours, 10);
+      if (!Number.isNaN(h) && h >= 1 && h <= 48) {
+        this.aiAnalysisHours = h;
       }
     }
 
@@ -737,28 +746,31 @@ class WeChatAIApp {
 
     this.showLoading(true);
     try {
-      // Calculate timestamp for 1 hour ago (seconds)
-      const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
+      const hours = this.aiAnalysisHours && this.aiAnalysisHours >= 1 && this.aiAnalysisHours <= 48
+        ? this.aiAnalysisHours
+        : 1;
+      const secondsRange = hours * 3600;
+      const startTime = Math.floor(Date.now() / 1000) - secondsRange;
       
-      // Fetch messages from the last hour
+      // Fetch messages from the last N hours
       // Use a large limit to ensure we get all of them
-      const data = await this.api(`/api/wechat/messages/${this.currentChatId}?limit=1000&startTime=${oneHourAgo}`);
+      const data = await this.api(`/api/wechat/messages/${this.currentChatId}?limit=1000&startTime=${startTime}`);
       const recentMessages = Array.isArray(data.messages) ? data.messages : [];
       
-      console.log(`[Client] generateTodosFromChat fetched ${recentMessages.length} messages from last hour`);
+      console.log(`[Client] generateTodosFromChat fetched ${recentMessages.length} messages from last ${hours} hour(s)`);
 
       if (recentMessages.length === 0) {
-        this.showToast('过去一小时内没有消息', 'info');
+        this.showToast(`过去${hours}小时内没有消息`, 'info');
         this.showLoading(false);
         return;
       }
 
       // Filter for text messages only (do not change current view messages)
       const textMessages = recentMessages.filter(msg => msg.type === 'text');
-      console.log(`[Client] generateTodosFromChat filtered to ${textMessages.length} text messages`);
+      console.log(`[Client] generateTodosFromChat filtered to ${textMessages.length} text messages in last ${hours} hour(s)`);
 
       if (textMessages.length === 0) {
-        this.showToast('过去一小时内没有文字消息', 'info');
+        this.showToast(`过去${hours}小时内没有文字消息`, 'info');
         this.showLoading(false);
         return;
       }
@@ -942,6 +954,11 @@ class WeChatAIApp {
     if (messageLimitInput) {
       messageLimitInput.value = this.messagePageLimit;
     }
+
+    const hoursInput = document.getElementById('ai-analysis-hours');
+    if (hoursInput) {
+      hoursInput.value = this.aiAnalysisHours;
+    }
   }
 
   async checkAIStatus() {
@@ -1093,7 +1110,8 @@ class WeChatAIApp {
 
   async saveMessageSettings() {
     const input = document.getElementById('message-limit');
-    if (!input) return;
+    const hoursInput = document.getElementById('ai-analysis-hours');
+    if (!input || !hoursInput) return;
 
     const value = parseInt(input.value, 10);
     if (Number.isNaN(value) || value <= 0 || value > 500) {
@@ -1101,9 +1119,17 @@ class WeChatAIApp {
       return;
     }
 
+    const hours = parseInt(hoursInput.value, 10);
+    if (Number.isNaN(hours) || hours < 1 || hours > 48) {
+      this.showToast('AI识别范围请输入 1 到 48 小时之间的数字', 'warning');
+      return;
+    }
+
     this.messagePageLimit = value;
     localStorage.setItem('messagePageLimit', String(value));
-    this.showToast('消息显示条数已保存', 'success');
+    this.aiAnalysisHours = hours;
+    localStorage.setItem('aiAnalysisHours', String(hours));
+    this.showToast('消息与AI识别范围已保存', 'success');
   }
 
   // Utilities

@@ -398,7 +398,15 @@
               <label>消息管理页面每次加载的消息条数</label>
               <input type="number" id="message-limit" min="1" max="500" placeholder="50">
               <p class="setting-hint">用于“消息管理”中右侧消息列表，建议 20~200 条。</p>
-              <button class="btn btn-primary" onclick="app.saveMessageSettings()">保存消息设置</button>
+            </div>
+
+            <div class="setting-item">
+              <label>AI识别消息范围（小时）</label>
+              <input type="number" id="ai-analysis-hours" min="1" max="48" placeholder="1">
+              <p class="setting-hint">用于“AI提取重要信息”时的时间范围，1~48 小时。</p>
+            </div>
+
+            <button class="btn btn-primary" onclick="app.saveMessageSettings()">保存消息与分析设置</button>
             </div>
           </div>
         </div>
