@@ -505,6 +505,19 @@
     <p>加载中...</p>
   </div>
 
+  <div class="modal-overlay" id="todo-detail-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="todo-detail-title"></h3>
+        <button class="modal-close-btn" onclick="app.closeTodoDetail()">✖</button>
+      </div>
+      <div class="modal-content" id="todo-detail-content"></div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="app.closeTodoDetail()">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

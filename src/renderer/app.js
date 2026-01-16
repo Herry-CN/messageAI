@@ -655,6 +655,7 @@ class WeChatAIApp {
             </div>
           </div>
           <div class="todo-actions">
+            <button class="todo-action-btn" onclick="app.openTodoDetail('${escapedId}')">👁️</button>
             <button class="todo-action-btn" onclick="app.deleteTodo('${escapedId}')">🗑️</button>
           </div>
         </div>
@@ -1130,6 +1131,58 @@ class WeChatAIApp {
     this.aiAnalysisHours = hours;
     localStorage.setItem('aiAnalysisHours', String(hours));
     this.showToast('消息与AI识别范围已保存', 'success');
+  }
+
+  openTodoDetail(id) {
+    const todo = this.todos.find(t => t.id === id);
+    if (!todo) {
+      this.showToast('未找到待办详情', 'error');
+      return;
+    }
+
+    const modal = document.getElementById('todo-detail-modal');
+    const titleEl = document.getElementById('todo-detail-title');
+    const contentEl = document.getElementById('todo-detail-content');
+    if (!modal || !titleEl || !contentEl) return;
+
+    const priorityLabel = this.getPriorityLabel(todo.priority);
+    const dueDateStr = todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : '无';
+    const groupTag = todo.groupName ? `📁 ${escapeHtml(todo.groupName)}` : '未知群组';
+    const senderTag = todo.sender ? `👤 ${escapeHtml(todo.sender)}` : '未知发送者';
+    const timeTag = todo.messageTime ? `🕒 ${escapeHtml(todo.messageTime)}` : '未知时间';
+    const description = todo.description ? escapeHtml(todo.description) : '无';
+    const sourcePreview = todo.sourceMessage ? escapeHtml(todo.sourceMessage) : '无';
+
+    titleEl.textContent = todo.title || '待办详情';
+    contentEl.innerHTML = `
+      <div style="margin-bottom: 12px;">
+        <span class="priority-badge priority-${escapeHtml(todo.priority)}">${priorityLabel}</span>
+        ${todo.source === 'ai-generated' ? '<span class="source-badge">AI生成</span>' : ''}
+        <span style="margin-left:8px;">截止: ${dueDateStr}</span>
+      </div>
+      <div style="margin-bottom: 12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <span class="meta-tag time-tag">${timeTag}</span>
+        <span class="meta-tag group-tag">${groupTag}</span>
+        <span class="meta-tag sender-tag">${senderTag}</span>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <h4 style="margin:0 0 8px 0;">详细描述</h4>
+        <div>${description}</div>
+      </div>
+      <div>
+        <h4 style="margin:0 0 8px 0;">源消息片段</h4>
+        <pre style="white-space: pre-wrap; background: var(--bg-light); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">${sourcePreview}</pre>
+      </div>
+    `;
+
+    modal.classList.add('active');
+  }
+
+  closeTodoDetail() {
+    const modal = document.getElementById('todo-detail-modal');
+    if (modal) {
+      modal.classList.remove('active');
+    }
   }
 
   // Utilities
