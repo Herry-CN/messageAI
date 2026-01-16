@@ -198,6 +198,9 @@
               <button class="btn btn-secondary" onclick="app.indexToKnowledge()">
                 <span>📚</span> 添加到知识库
               </button>
+              <button class="btn btn-secondary" onclick="app.generateTodosForSelectedGroupsBatch()">
+                <span>🧩</span> 批量提取选中群
+              </button>
             </div>
           </div>
         </div>
@@ -404,6 +407,12 @@
               <label>AI识别消息范围（小时）</label>
               <input type="number" id="ai-analysis-hours" min="1" max="48" placeholder="1">
               <p class="setting-hint">用于“AI提取重要信息”时的时间范围，1~48 小时。</p>
+            </div>
+
+            <div class="setting-item">
+              <label>批量提取选中群的间隔（秒）</label>
+              <input type="number" id="batch-interval-seconds" min="1" max="600" placeholder="10">
+              <p class="setting-hint">用于控制批量为多群生成待办时的间隔，避免数据库与AI拥塞。</p>
             </div>
 
             <button class="btn btn-primary" onclick="app.saveMessageSettings()">保存消息与分析设置</button>
