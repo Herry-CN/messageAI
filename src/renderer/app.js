@@ -49,9 +49,21 @@ class WeChatAIApp {
       }
     }
 
+    // Auto-configure from localStorage if available
+    const savedPath = localStorage.getItem('wechatDataPath');
+    if (savedPath) {
+      console.log('Restoring saved WeChat path:', savedPath);
+      await this.configureWechat(savedPath, true);
+    }
+
     this.setupNavigation();
     this.setupEventListeners();
-    await this.loadInitialData();
+    
+    // Only load initial data if not already loaded by configureWechat
+    if (!savedPath) {
+      await this.loadInitialData();
+    }
+
     this.setupWebSocket();
     this.checkAIStatus();
   }
@@ -726,9 +738,19 @@ class WeChatAIApp {
       this.messages = recentMessages;
       this.renderMessages();
 
+      // Filter for text messages only
+      const textMessages = recentMessages.filter(msg => msg.type === 'text');
+      console.log(`[Client] generateTodosFromChat filtered to ${textMessages.length} text messages`);
+
+      if (textMessages.length === 0) {
+        this.showToast('过去一小时内没有文字消息', 'info');
+        this.showLoading(false);
+        return;
+      }
+
       const newTodos = await this.api('/api/todos/generate-from-chat', {
         method: 'POST',
-        body: JSON.stringify({ messages: recentMessages })
+        body: JSON.stringify({ messages: textMessages })
       });
       
       this.todos = [...this.todos, ...newTodos];
@@ -885,6 +907,13 @@ class WeChatAIApp {
   // Settings
   async loadSettings() {
     await this.checkAIStatus();
+
+    // Restore WeChat path to input
+    const savedPath = localStorage.getItem('wechatDataPath');
+    const input = document.getElementById('wechat-path');
+    if (savedPath && input) {
+      input.value = savedPath;
+    }
   }
 
   async checkAIStatus() {
@@ -965,16 +994,23 @@ class WeChatAIApp {
     }
   }
 
-  async configureWechat(path) {
+  async configureWechat(path, silent = false) {
     try {
       await this.api('/api/wechat/configure', {
         method: 'POST',
         body: JSON.stringify({ dataPath: path })
       });
-      this.showToast('微信数据目录已配置', 'success');
+      
+      localStorage.setItem('wechatDataPath', path);
+
+      if (!silent) {
+        this.showToast('微信数据目录已配置', 'success');
+      }
       await this.loadInitialData();
     } catch {
-      this.showToast('配置失败', 'error');
+      if (!silent) {
+        this.showToast('配置失败', 'error');
+      }
     }
   }
 
