@@ -470,6 +470,36 @@ body {
   accent-color: var(--primary-color);
 }
 
+.chat-list-batch-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.chat-list-batch-controls .link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-right: 8px;
+  color: var(--primary-color);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.chat-list-batch-controls .link-button:last-of-type {
+  margin-right: 0;
+}
+
+.only-selected-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .chat-item:hover {
   background-color: var(--primary-light);
 }

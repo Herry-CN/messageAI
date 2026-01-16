@@ -39,6 +39,7 @@ class WeChatAIApp {
     this.aiAnalysisHours = 1;
     this.batchSelectedGroupIds = [];
     this.batchIntervalSeconds = 10;
+    this.chatListShowOnlySelected = false;
 
     this.init();
   }
@@ -352,9 +353,14 @@ class WeChatAIApp {
     const searchTerm = document.getElementById('chat-search')?.value.toLowerCase() || '';
     
     const items = this.currentChatType === 'contacts' ? this.contacts : this.groups;
-    const filtered = items.filter(item => 
+    let filtered = items.filter(item => 
       item.name.toLowerCase().includes(searchTerm)
     );
+
+    const isGroupList = this.currentChatType === 'groups';
+    if (isGroupList && this.chatListShowOnlySelected) {
+      filtered = filtered.filter(item => this.batchSelectedGroupIds.includes(String(item.id)));
+    }
 
     // Add demo mode notice if using sample data
     const demoNotice = this.isUsingDemoData ? `
@@ -364,7 +370,19 @@ class WeChatAIApp {
       </div>
     ` : '';
 
-    container.innerHTML = demoNotice + filtered.map(item => {
+    const batchControls = isGroupList ? `
+      <div class="chat-list-batch-controls">
+        <button type="button" class="link-button" onclick="app.selectAllVisibleGroups()">全选当前列表</button>
+        <button type="button" class="link-button" onclick="app.deselectAllVisibleGroups()">取消当前列表选择</button>
+        <button type="button" class="link-button" onclick="app.clearAllGroupSelections()">清空全部选择</button>
+        <label class="only-selected-toggle">
+          <input type="checkbox" ${this.chatListShowOnlySelected ? 'checked' : ''} onchange="app.toggleShowOnlySelected(this.checked)">
+          只看已选群
+        </label>
+      </div>
+    ` : '';
+
+    container.innerHTML = demoNotice + batchControls + filtered.map(item => {
       const escapedId = escapeHtml(item.id);
       const escapedName = escapeHtml(item.name);
       const firstChar = escapeHtml(item.name[0] || '?');
@@ -427,6 +445,51 @@ class WeChatAIApp {
       intervalSeconds: this.batchIntervalSeconds
     };
     localStorage.setItem('batchTodoSettings', JSON.stringify(config));
+  }
+
+  selectAllVisibleGroups() {
+    if (this.currentChatType !== 'groups') return;
+
+    const searchTerm = document.getElementById('chat-search')?.value.toLowerCase() || '';
+    const visible = this.groups.filter(item =>
+      item.name.toLowerCase().includes(searchTerm)
+    );
+
+    visible.forEach(item => {
+      const id = String(item.id);
+      if (!this.batchSelectedGroupIds.includes(id)) {
+        this.batchSelectedGroupIds.push(id);
+      }
+    });
+
+    this.saveBatchTodoSettings();
+    this.renderChatList();
+  }
+
+  deselectAllVisibleGroups() {
+    if (this.currentChatType !== 'groups') return;
+
+    const searchTerm = document.getElementById('chat-search')?.value.toLowerCase() || '';
+    const visible = this.groups.filter(item =>
+      item.name.toLowerCase().includes(searchTerm)
+    );
+    const visibleIds = new Set(visible.map(item => String(item.id)));
+
+    this.batchSelectedGroupIds = this.batchSelectedGroupIds.filter(id => !visibleIds.has(id));
+    this.saveBatchTodoSettings();
+    this.renderChatList();
+  }
+
+  clearAllGroupSelections() {
+    if (this.currentChatType !== 'groups') return;
+    this.batchSelectedGroupIds = [];
+    this.saveBatchTodoSettings();
+    this.renderChatList();
+  }
+
+  toggleShowOnlySelected(checked) {
+    this.chatListShowOnlySelected = !!checked;
+    this.renderChatList();
   }
 
   generateSampleMessages(chatId, count) {
