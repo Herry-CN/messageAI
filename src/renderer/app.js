@@ -396,6 +396,8 @@ class WeChatAIApp {
           <input type="checkbox" ${this.chatListShowOnlySelected ? 'checked' : ''} onchange="app.toggleShowOnlySelected(this.checked)">
           只看已选群
         </label>
+        <button type="button" class="link-button" onclick="app.exportGroupSelection()">导出群选择</button>
+        <button type="button" class="link-button" onclick="app.importGroupSelection()">导入群选择</button>
         <span class="auto-batch-status" id="auto-batch-status-text"></span>
       </div>
     ` : '';
@@ -510,6 +512,83 @@ class WeChatAIApp {
   toggleShowOnlySelected(checked) {
     this.chatListShowOnlySelected = !!checked;
     this.renderChatList();
+  }
+
+  exportGroupSelection() {
+    if (this.currentChatType !== 'groups') return;
+    if (!this.batchSelectedGroupIds || this.batchSelectedGroupIds.length === 0) {
+      this.showToast('当前没有已选群', 'info');
+      return;
+    }
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      selectedGroupIds: this.batchSelectedGroupIds.slice()
+    };
+    const text = JSON.stringify(data, null, 2);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        this.showToast('群选择已复制到剪贴板', 'success');
+      }).catch(() => {
+        window.prompt('请复制以下内容备份群选择：', text);
+      });
+    } else {
+      window.prompt('请复制以下内容备份群选择：', text);
+    }
+  }
+
+  importGroupSelection() {
+    if (this.currentChatType !== 'groups') return;
+    const handleImport = (text) => {
+      if (!text) {
+        this.showToast('导入失败：没有读取到内容', 'error');
+        return;
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        this.showToast('导入失败：内容不是有效的JSON', 'error');
+        return;
+      }
+      if (!parsed || !Array.isArray(parsed.selectedGroupIds)) {
+        this.showToast('导入失败：缺少selectedGroupIds字段', 'error');
+        return;
+      }
+      const idSet = new Set(parsed.selectedGroupIds.map(id => String(id)));
+      const validIds = this.groups
+        .map(g => String(g.id))
+        .filter(id => idSet.has(id));
+      if (validIds.length === 0) {
+        this.showToast('导入成功，但未匹配到任何当前存在的群', 'info');
+      }
+      this.batchSelectedGroupIds = validIds;
+      this.saveBatchTodoSettings();
+      this.renderChatList();
+      if (validIds.length > 0) {
+        this.showToast(`已导入 ${validIds.length} 个群的选择`, 'success');
+      }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      navigator.clipboard.readText().then(text => {
+        if (!text) {
+          const input = window.prompt('剪贴板中没有内容，请粘贴之前导出的群选择：');
+          if (!input) return;
+          handleImport(input);
+        } else {
+          handleImport(text);
+        }
+      }).catch(() => {
+        const input = window.prompt('请粘贴之前导出的群选择内容：');
+        if (!input) return;
+        handleImport(input);
+      });
+    } else {
+      const input = window.prompt('请粘贴之前导出的群选择内容：');
+      if (!input) return;
+      handleImport(input);
+    }
   }
 
   generateSampleMessages(chatId, count) {
