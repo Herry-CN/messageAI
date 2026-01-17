@@ -139,6 +139,37 @@ class TodoService {
 
     const createdTodos = [];
     for (const todoData of extractedTodos) {
+      // Check for duplicates before creating
+      const isDuplicate = this.todos.some(existing => {
+        // Must be from same group
+        if (existing.groupName !== chatName) return false;
+        
+        // Strategy 1: AI extracted exact same message timestamp and sender
+        if (todoData.messageTime && todoData.sender && 
+            existing.messageTime === todoData.messageTime && 
+            existing.sender === todoData.sender) {
+          return true;
+        }
+
+        // Strategy 2: Title similarity check (exact match or very similar)
+        if (existing.title === todoData.title) return true;
+        
+        // Strategy 3: Content overlap check (if description is long enough)
+        // This prevents same task with slightly different AI wording
+        if (todoData.description && existing.description && 
+            todoData.description.length > 10 && existing.description.length > 10) {
+          const similarity = this.calculateSimilarity(todoData.description, existing.description);
+          if (similarity > 0.8) return true;
+        }
+
+        return false;
+      });
+
+      if (isDuplicate) {
+        console.log('[TodoService] Skipping duplicate todo:', todoData.title);
+        continue;
+      }
+
       const todo = this.create({
         ...todoData,
         groupName: chatName,
@@ -149,6 +180,17 @@ class TodoService {
     }
 
     return createdTodos;
+  }
+
+  // Simple similarity check (Levenshtein distance based or Jaccard index)
+  // Here we implement a simple Jaccard index for character n-grams
+  calculateSimilarity(str1, str2) {
+    if (!str1 || !str2) return 0;
+    const s1 = new Set(str1.split(''));
+    const s2 = new Set(str2.split(''));
+    const intersection = new Set([...s1].filter(x => s2.has(x)));
+    const union = new Set([...s1, ...s2]);
+    return intersection.size / union.size;
   }
 
   getStatistics() {
