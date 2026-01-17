@@ -42,6 +42,8 @@ class WeChatAIApp {
     this.chatListShowOnlySelected = false;
     this.autoBatchIntervalMinutes = 5;
     this.autoBatchTimer = null;
+    this.autoBatchNextRunAt = null;
+    this.autoBatchCountdownTimer = null;
 
     this.init();
   }
@@ -167,6 +169,15 @@ class WeChatAIApp {
         }
       });
     }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('todo-detail-modal');
+        if (modal && modal.classList.contains('active')) {
+          this.closeTodoDetail();
+        }
+      }
+    });
   }
 
   navigateTo(page) {
@@ -385,6 +396,7 @@ class WeChatAIApp {
           <input type="checkbox" ${this.chatListShowOnlySelected ? 'checked' : ''} onchange="app.toggleShowOnlySelected(this.checked)">
           只看已选群
         </label>
+        <span class="auto-batch-status" id="auto-batch-status-text"></span>
       </div>
     ` : '';
 
@@ -411,6 +423,7 @@ class WeChatAIApp {
         </div>
       `;
     }).join('');
+    this.updateAutoBatchStatusUI();
   }
 
   async selectChat(chatId) {
@@ -918,15 +931,33 @@ class WeChatAIApp {
     const minutes = this.autoBatchIntervalMinutes;
     if (!minutes || minutes < 5) {
       console.log('[AutoBatch] Interval < 5 minutes or not set, auto analysis disabled.');
+      this.updateAutoBatchStatusUI();
       return;
     }
 
     const interval = minutes * 60 * 1000;
     console.log(`[AutoBatch] Starting with interval ${minutes} minutes`);
 
+    this.autoBatchNextRunAt = Date.now() + interval;
+
     this.autoBatchTimer = setInterval(() => {
       this.generateTodosForSelectedGroupsBatch(true);
+      const currentMinutes = this.autoBatchIntervalMinutes;
+      if (!currentMinutes || currentMinutes < 5) {
+        this.stopAutoBatchExtract();
+        return;
+      }
+      const nextInterval = currentMinutes * 60 * 1000;
+      this.autoBatchNextRunAt = Date.now() + nextInterval;
     }, interval);
+
+    if (this.autoBatchCountdownTimer) {
+      clearInterval(this.autoBatchCountdownTimer);
+    }
+    this.autoBatchCountdownTimer = setInterval(() => {
+      this.updateAutoBatchStatusUI();
+    }, 1000);
+    this.updateAutoBatchStatusUI();
   }
 
   stopAutoBatchExtract() {
@@ -934,6 +965,46 @@ class WeChatAIApp {
       clearInterval(this.autoBatchTimer);
       this.autoBatchTimer = null;
     }
+    if (this.autoBatchCountdownTimer) {
+      clearInterval(this.autoBatchCountdownTimer);
+      this.autoBatchCountdownTimer = null;
+    }
+    this.autoBatchNextRunAt = null;
+    this.updateAutoBatchStatusUI();
+  }
+
+  updateAutoBatchStatusUI() {
+    const el = document.getElementById('auto-batch-status-text');
+    if (!el) return;
+
+    const minutes = this.autoBatchIntervalMinutes;
+    if (!minutes || minutes < 5) {
+      el.textContent = '定时批量分析：已关闭';
+      return;
+    }
+
+    if (!this.autoBatchTimer) {
+      el.textContent = `定时批量分析：每${minutes}分钟，未启动`;
+      return;
+    }
+
+    if (!this.autoBatchNextRunAt) {
+      el.textContent = `定时批量分析：每${minutes}分钟`;
+      return;
+    }
+
+    const diff = this.autoBatchNextRunAt - Date.now();
+    if (diff <= 0) {
+      el.textContent = `定时批量分析：正在执行`;
+      return;
+    }
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    const mm = String(m).padStart(2, '0');
+    const ss = String(s).padStart(2, '0');
+    el.textContent = `定时批量分析：每${minutes}分钟，距离下次还有 ${mm}:${ss}`;
   }
 
   async generateTodosForSelectedGroupsBatch(isAuto = false) {
