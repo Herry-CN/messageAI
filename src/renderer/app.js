@@ -28,6 +28,7 @@ class WeChatAIApp {
     this.currentChatType = 'contacts';
     this.messages = [];
     this.todos = [];
+    this.currentTodoFilter = 'all';
     this.contacts = [];
     this.groups = [];
     this.monitoringGroups = [];
@@ -803,11 +804,12 @@ class WeChatAIApp {
     this.renderTodos();
   }
 
-  renderTodos(filter = 'all') {
+  renderTodos(filter = null) {
+    const activeFilter = filter || this.currentTodoFilter;
     const container = document.getElementById('todo-list');
     let filtered = this.todos;
 
-    switch (filter) {
+    switch (activeFilter) {
       case 'pending':
         filtered = this.todos.filter(t => !t.completed);
         break;
@@ -872,6 +874,7 @@ class WeChatAIApp {
   }
 
   filterTodos(filter) {
+    this.currentTodoFilter = filter;
     this.renderTodos(filter);
   }
 
