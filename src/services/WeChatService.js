@@ -255,18 +255,15 @@ class WeChatService {
       return this.generateSampleContacts();
     }
     
-    // Refresh from database if cache is empty
-    if (this.contactsCache.length === 0) {
-      try {
-        const contacts = await this.executePython('contacts', [this.dataPath]);
-        if (Array.isArray(contacts) && contacts.length > 0) {
-          this.contactsCache = contacts;
-        }
-      } catch (error) {
-        console.error('Failed to refresh contacts:', error.message);
+    try {
+      const contacts = await this.executePython('contacts', [this.dataPath]);
+      if (Array.isArray(contacts) && contacts.length > 0) {
+        this.contactsCache = contacts;
       }
+    } catch (error) {
+      console.error('Failed to refresh contacts:', error.message);
     }
-    
+
     return this.contactsCache;
   }
 
@@ -275,18 +272,15 @@ class WeChatService {
       return this.generateSampleGroups();
     }
     
-    // Refresh from database if cache is empty
-    if (this.groupsCache.length === 0) {
-      try {
-        const groups = await this.executePython('groups', [this.dataPath]);
-        if (Array.isArray(groups) && groups.length > 0) {
-          this.groupsCache = groups;
-        }
-      } catch (error) {
-        console.error('Failed to refresh groups:', error.message);
+    try {
+      const groups = await this.executePython('groups', [this.dataPath]);
+      if (Array.isArray(groups) && groups.length > 0) {
+        this.groupsCache = groups;
       }
+    } catch (error) {
+      console.error('Failed to refresh groups:', error.message);
     }
-    
+
     return this.groupsCache;
   }
 
