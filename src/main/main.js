@@ -31,7 +31,7 @@ function findAvailablePort(startPort) {
 }
 
 function createWindow() {
-  const iconPath = path.join(__dirname, '../../public/icon.png');
+  const iconPath = getIconPath();
   console.log('Icon path:', iconPath);
   console.log('Icon exists:', fs.existsSync(iconPath));
 
@@ -70,24 +70,45 @@ function createWindow() {
   createTray();
 }
 
+function getIconPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'public', 'icon.png');
+  }
+  return path.join(__dirname, '../../public/icon.png');
+}
+
 function createTray() {
-  const iconPath = path.join(__dirname, '../../public/icon.png');
+  if (tray) return;
+
+  const iconPath = getIconPath();
   console.log('Tray icon path:', iconPath);
   
   try {
     const icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) {
+      console.warn('Tray icon is empty. Checking path:', iconPath);
+    }
+
     tray = new Tray(icon);
     
     const contextMenu = Menu.buildFromTemplate([
       { 
         label: '显示主窗口', 
-        click: () => mainWindow.show() 
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show();
+            if (mainWindow.isMinimized()) mainWindow.restore();
+          }
+        }
       },
       { 
         label: '设置', 
         click: () => {
-          mainWindow.show();
-          mainWindow.webContents.send('navigate', 'settings');
+          if (mainWindow) {
+            mainWindow.show();
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.webContents.send('navigate', 'settings');
+          }
         }
       },
       { type: 'separator' },
@@ -104,7 +125,10 @@ function createTray() {
     tray.setContextMenu(contextMenu);
     
     tray.on('double-click', () => {
-      mainWindow.show();
+      if (mainWindow) {
+        mainWindow.show();
+        if (mainWindow.isMinimized()) mainWindow.restore();
+      }
     });
   } catch (error) {
     console.error('Failed to create tray:', error);

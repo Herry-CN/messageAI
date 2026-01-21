@@ -55,6 +55,13 @@
         "filter": [
           "**/*"
         ]
+      },
+      {
+        "from": "public",
+        "to": "public",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {

@@ -191,6 +191,18 @@
                 <p>选择左侧会话查看消息</p>
               </div>
             </div>
+            
+            <!-- Batch Analysis Progress Bar -->
+            <div id="batch-progress-container" style="display: none; padding: 15px; margin: 0 20px 10px 20px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: var(--text-primary);">
+                <span id="batch-progress-text">正在准备分析...</span>
+                <span id="batch-progress-percent">0%</span>
+              </div>
+              <div style="width: 100%; height: 6px; background: var(--bg-primary); border-radius: 3px; overflow: hidden;">
+                <div id="batch-progress-bar" style="width: 0%; height: 100%; background: var(--primary-color); transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+
             <div class="message-actions">
               <button class="btn btn-primary" onclick="app.generateTodosFromChat()">
                 <span>✨</span> AI提取重要信息
@@ -407,12 +419,6 @@
               <label>AI识别消息范围（小时）</label>
               <input type="number" id="ai-analysis-hours" min="1" max="48" placeholder="1">
               <p class="setting-hint">用于“AI提取重要信息”时的时间范围，1~48 小时。</p>
-            </div>
-
-            <div class="setting-item">
-              <label>批量提取选中群的间隔（秒）</label>
-              <input type="number" id="batch-interval-seconds" min="1" max="600" placeholder="10">
-              <p class="setting-hint">用于控制批量为多群生成待办时的间隔，避免数据库与AI拥塞。</p>
             </div>
 
             <div class="setting-item">
