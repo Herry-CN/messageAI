@@ -7,7 +7,15 @@ const MONITOR_INTERVAL_MS = 15000; // Check for new messages every 15 seconds
 const SIMULATE_MESSAGE_CHANCE = 0.3; // 30% chance of generating a simulated message
 
 // Path to Python script
-const PYTHON_SCRIPT_PATH = path.join(__dirname, '..', 'python', 'wechat_reader.py');
+let PYTHON_SCRIPT_PATH;
+if (process.env.IS_PACKAGED === 'true') {
+  // Production environment: script is in resources/python
+  PYTHON_SCRIPT_PATH = path.join(process.env.APP_RESOURCES_PATH, 'python', 'wechat_reader.py');
+} else {
+  // Development environment
+  PYTHON_SCRIPT_PATH = path.join(__dirname, '..', 'python', 'wechat_reader.py');
+}
+
 
 /**
  * WeChat Service - Handles WeChat data reading and processing

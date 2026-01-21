@@ -48,6 +48,15 @@
       "public/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "src/python",
+        "to": "python",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "win": {
       "target": [
         "nsis",

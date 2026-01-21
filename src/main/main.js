@@ -122,7 +122,12 @@ async function startServer() {
 
   const serverPath = path.join(__dirname, '../server/index.js');
   serverProcess = fork(serverPath, [], {
-    env: { ...process.env, PORT: SERVER_PORT }
+    env: { 
+      ...process.env, 
+      PORT: SERVER_PORT,
+      IS_PACKAGED: app.isPackaged ? 'true' : 'false',
+      APP_RESOURCES_PATH: process.resourcesPath
+    }
   });
 
   serverProcess.on('message', (message) => {
