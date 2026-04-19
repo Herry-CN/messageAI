@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 dist/
+dist-*/
 out/
 
 # Logs
@@ -16,6 +17,7 @@ Thumbs.db
 # IDE files
 .idea/
 .vscode/
+.trae/
 *.swp
 *.swo
 
@@ -28,6 +30,12 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# Local app data
+data/
+
+# Local test artifacts
+群.json
 
 # WeChat data (for privacy)
 wechat-data/

@@ -197,11 +197,30 @@ app.delete('/api/todos/:id', (req, res) => {
   }
 });
 
+app.post('/api/todos/delete-all', (req, res) => {
+  try {
+    const result = todoService.deleteAll();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/todos/storage', (req, res) => {
+  try {
+    res.json(todoService.getStorageInfo());
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/api/todos/generate-from-chat', async (req, res) => {
   try {
-    const { messages, chatName } = req.body;
+    const { messages, chatName, confidenceThreshold } = req.body;
     console.log('[Server] /api/todos/generate-from-chat messages length =', messages ? messages.length : 0);
-    const todos = await todoService.generateFromChat(messages, aiService, chatName);
+    const todos = await todoService.generateFromChat(messages, aiService, chatName, {
+      confidenceThreshold
+    });
     console.log('[Server] /api/todos/generate-from-chat todos length =', todos.length);
     res.json(todos);
   } catch (error) {

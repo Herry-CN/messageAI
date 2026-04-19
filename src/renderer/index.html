@@ -205,13 +205,13 @@
 
             <div class="message-actions">
               <button class="btn btn-primary" onclick="app.generateTodosFromChat()">
-                <span>✨</span> AI提取重要信息
+                <span>✨</span> 智能抓取商机
               </button>
               <button class="btn btn-secondary" onclick="app.indexToKnowledge()">
                 <span>📚</span> 添加到知识库
               </button>
               <button class="btn btn-secondary" onclick="app.generateTodosForSelectedGroupsBatch()">
-                <span>🧩</span> 批量提取选中群
+                <span>🧩</span> 批量抓取商机
               </button>
             </div>
           </div>
@@ -278,7 +278,8 @@
             <button class="filter-btn active" data-filter="all">全部</button>
             <button class="filter-btn" data-filter="pending">待完成</button>
             <button class="filter-btn" data-filter="completed">已完成</button>
-            <button class="filter-btn" data-filter="ai-generated">AI重要信息</button>
+            <button class="filter-btn" data-filter="ai-generated">AI商机信息</button>
+            <button class="btn btn-danger" style="margin-left:auto" onclick="app.deleteAllTodos()">全部删除</button>
           </div>
 
           <div class="todo-list" id="todo-list">
@@ -381,53 +382,69 @@
             <div class="setting-item">
               <label>Ollama服务地址</label>
               <input type="text" id="ollama-url" placeholder="http://localhost:11434">
-              <p class="setting-hint">本地Ollama服务地址，默认为 http://localhost:11434</p>
+              <p class="setting-hint">只有在你把 Ollama 装在别的地址时才需要修改。大多数情况下保持默认即可。</p>
             </div>
 
             <div class="setting-item">
               <label>OpenAI API Key（备用）</label>
               <input type="password" id="openai-key" placeholder="sk-...">
-              <p class="setting-hint">当本地Ollama不可用时，将使用OpenAI作为后备</p>
+              <p class="setting-hint">只有在本地 Ollama 不可用时才会作为备用。本项不会在本地长期保存，重启后如需继续使用请重新填写。</p>
             </div>
 
             <div class="setting-item">
-              <label>AI模型</label>
+              <label>优先模型（可选）</label>
               <select id="ai-model">
                 <option value="">自动选择</option>
               </select>
+              <p class="setting-hint">留空时系统会自动挑选最合适的模型；只有在你想固定使用某个 Ollama 模型时再指定。</p>
             </div>
 
             <div class="setting-item">
-              <label>AI提示词分类（用于提取重要信息）</label>
+              <label>商机类型关键词</label>
               <textarea id="ai-todo-prompt" rows="4" style="width: 100%; resize: vertical;"></textarea>
-              <p class="setting-hint">一行一个类别，可根据需要调整。仅修改此区域，其余提示逻辑保持不变。</p>
+              <p class="setting-hint">系统会优先抓取这些类型的内容。一行一类即可，例如“招聘信息”“求购信息”“找资源”。</p>
               <button class="btn btn-secondary" onclick="app.resetAIPrompt()">恢复默认提示词</button>
             </div>
 
-            <button class="btn btn-primary" onclick="app.saveAISettings()">保存AI设置</button>
+            <div class="setting-item">
+              <label>最低抓取把握度</label>
+              <input type="number" id="lead-confidence-threshold" min="0.5" max="0.95" step="0.05" placeholder="0.75">
+              <p class="setting-hint">值越高越严格。比如 0.75 表示：模型至少有七成五把握，才会把这条内容保存为商机。</p>
+            </div>
+
+            <button class="btn btn-primary" onclick="app.saveAISettings()">保存AI抓取设置</button>
           </div>
 
           <div class="settings-section">
-            <h3>消息显示配置</h3>
+            <h3>显示与抓取配置</h3>
             <div class="setting-item">
-              <label>消息管理页面每次加载的消息条数</label>
+              <label>消息页每次加载条数</label>
               <input type="number" id="message-limit" min="1" max="500" placeholder="50">
-              <p class="setting-hint">用于“消息管理”中右侧消息列表，建议 20~200 条。</p>
+              <p class="setting-hint">只影响右侧消息列表一次展示多少条，不影响商机抓取结果。建议 20 到 200。</p>
             </div>
 
             <div class="setting-item">
-              <label>AI识别消息范围（小时）</label>
+              <label>抓取最近几小时消息</label>
               <input type="number" id="ai-analysis-hours" min="1" max="48" placeholder="1">
-              <p class="setting-hint">用于“AI提取重要信息”时的时间范围，1~48 小时。</p>
+              <p class="setting-hint">抓取时只看最近这段时间内的新消息。数值越大，覆盖越全，但分析耗时也会增加。</p>
             </div>
 
             <div class="setting-item">
-              <label>自动分析选中群的间隔（分钟）</label>
+              <label>自动批量抓取间隔（分钟）</label>
               <input type="number" id="auto-batch-interval-minutes" min="5" max="1440" placeholder="5">
-              <p class="setting-hint">用于按间隔自动分析选中群消息并生成待办，最小 5 分钟。</p>
+              <p class="setting-hint">只有在你勾选了群聊后才会生效。留空或填 0 表示关闭自动抓取。</p>
             </div>
 
-            <button class="btn btn-primary" onclick="app.saveMessageSettings()">保存消息与分析设置</button>
+            <button class="btn btn-primary" onclick="app.saveMessageSettings()">保存显示与抓取设置</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>数据保存位置</h3>
+            <div class="setting-item">
+              <label>待办/商机数据文件</label>
+              <input type="text" id="todo-storage-file" readonly>
+              <p class="setting-hint">这是待办/商机的本地保存位置。只要不手动删除该文件，关闭程序后再次打开记录仍会保留。</p>
             </div>
           </div>
         </div>

@@ -38,12 +38,14 @@ class WeChatAIApp {
     this.isUsingDemoData = true; // Track if using demo/sample data
     this.messagePageLimit = 50;
     this.aiAnalysisHours = 1;
+    this.leadConfidenceThreshold = 0.75;
     this.batchSelectedGroupIds = [];
     this.chatListShowOnlySelected = false;
     this.autoBatchIntervalMinutes = 5;
     this.autoBatchTimer = null;
     this.autoBatchNextRunAt = null;
     this.autoBatchCountdownTimer = null;
+    this.lastAINotReadyToastAt = 0;
 
     this.init();
   }
@@ -72,6 +74,14 @@ class WeChatAIApp {
       const h = parseInt(savedHours, 10);
       if (!Number.isNaN(h) && h >= 1 && h <= 48) {
         this.aiAnalysisHours = h;
+      }
+    }
+
+    const savedConfidenceThreshold = localStorage.getItem('leadConfidenceThreshold');
+    if (savedConfidenceThreshold) {
+      const n = parseFloat(savedConfidenceThreshold);
+      if (!Number.isNaN(n) && n >= 0.5 && n <= 0.95) {
+        this.leadConfidenceThreshold = n;
       }
     }
 
@@ -321,11 +331,37 @@ class WeChatAIApp {
         },
         ...options
       });
-      return await response.json();
+      const text = await response.text();
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: text };
+        }
+      }
+      if (!response.ok) {
+        throw new Error(data && data.error ? data.error : `请求失败(${response.status})`);
+      }
+      return data;
     } catch (error) {
       console.error(`API Error (${endpoint}):`, error);
       throw error;
     }
+  }
+
+  async ensureAIReady() {
+    try {
+      const status = await this.api('/api/ai/status');
+      if (status && status.isReady === true) return true;
+    } catch {}
+
+    const now = Date.now();
+    if (!this.lastAINotReadyToastAt || now - this.lastAINotReadyToastAt > 60000) {
+      this.lastAINotReadyToastAt = now;
+      this.showToast('AI未就绪，请先在设置中配置Ollama或OpenAI', 'warning');
+    }
+    return false;
   }
 
   // Dashboard
@@ -443,6 +479,27 @@ class WeChatAIApp {
       this.messages = [];
       this.renderMessages();
     }
+  }
+
+  async ensureChatSelectedForSmartCapture() {
+    if (this.currentChatId) {
+      return true;
+    }
+
+    if (this.currentChatType === 'groups') {
+      if (this.batchSelectedGroupIds.length === 1) {
+        await this.selectChat(this.batchSelectedGroupIds[0]);
+        return true;
+      }
+
+      if (this.batchSelectedGroupIds.length > 1) {
+        this.showToast('已勾选多个群，请点击左侧群名打开一个会话，或使用批量抓取商机', 'warning');
+        return false;
+      }
+    }
+
+    this.showToast('请先选择一个会话', 'warning');
+    return false;
   }
 
   toggleBatchGroupSelection(groupId, checked) {
@@ -940,9 +997,33 @@ class WeChatAIApp {
     this.showToast('待办已删除', 'success');
   }
 
+  async deleteAllTodos() {
+    if (!this.todos || this.todos.length === 0) {
+      this.showToast('暂无待办可删除', 'info');
+      return;
+    }
+
+    const ok = window.confirm('确定要删除全部待办事项吗？此操作不可恢复。');
+    if (!ok) return;
+
+    try {
+      await this.api('/api/todos/delete-all', { method: 'POST' });
+      this.todos = [];
+      this.renderTodos();
+      this.updateDashboard();
+      this.showToast('已删除全部待办', 'success');
+    } catch (e) {
+      console.error(e);
+      this.showToast('全部删除失败，请重试', 'error');
+    }
+  }
+
   async generateTodosFromChat() {
-    if (!this.currentChatId) {
-      this.showToast('请先选择一个会话', 'warning');
+    if (!(await this.ensureChatSelectedForSmartCapture())) {
+      return;
+    }
+
+    if (!(await this.ensureAIReady())) {
       return;
     }
 
@@ -986,18 +1067,19 @@ class WeChatAIApp {
         method: 'POST',
         body: JSON.stringify({ 
           messages: textMessages,
-          chatName: chatName
+          chatName: chatName,
+          confidenceThreshold: this.leadConfidenceThreshold
         })
       });
       
       this.todos = [...this.todos, ...newTodos];
       this.renderTodos();
       this.updateDashboard();
-      this.showToast(`提取了 ${newTodos.length} 条重要信息`, 'success');
+      this.showToast(`智能抓取到 ${newTodos.length} 条商机/资源类重要信息`, 'success');
       console.log('[Client] generateTodosFromChat newTodos =', newTodos);
     } catch (error) {
       console.error(error);
-      this.showToast('AI提取重要信息失败，请检查AI配置', 'error');
+      this.showToast(`商机智能抓取失败：${error.message || '请检查AI配置'}`, 'error');
     }
     this.showLoading(false);
   }
@@ -1110,6 +1192,10 @@ class WeChatAIApp {
       return;
     }
 
+    if (!(await this.ensureAIReady())) {
+      return;
+    }
+
     const hours = this.aiAnalysisHours && this.aiAnalysisHours >= 1 && this.aiAnalysisHours <= 48
       ? this.aiAnalysisHours
       : 1;
@@ -1123,6 +1209,11 @@ class WeChatAIApp {
     else console.log('[AutoBatch] Starting extraction cycle...');
 
     let totalTodos = 0;
+    let groupsNoMessages = 0;
+    let groupsNoText = 0;
+    let groupsAIRequested = 0;
+    let groupsAIEmpty = 0;
+    let groupsAIError = 0;
 
     try {
       for (let i = 0; i < groupIds.length; i++) {
@@ -1140,11 +1231,26 @@ class WeChatAIApp {
           this.updateBatchProgress(percent, `正在分析: ${chatName} (${i + 1}/${groupIds.length})`);
         }
 
-        const data = await this.api(`/api/wechat/messages/${groupId}?limit=1000&startTime=${startTime}`);
-        const recentMessages = Array.isArray(data.messages) ? data.messages : [];
-        console.log(`[Client] batchGenerateTodos group ${chatName} fetched ${recentMessages.length} messages from last ${hours} hour(s)`);
+        const PAGE_SIZE = 1000;
+        const SAFETY_LIMIT = 10000;
+        let allMessages = [];
+        let offset = 0;
+        while (true) {
+          const data = await this.api(`/api/wechat/messages/${groupId}?limit=${PAGE_SIZE}&offset=${offset}&startTime=${startTime}`);
+          const batch = Array.isArray(data.messages) ? data.messages : [];
+          if (batch.length > 0) {
+            allMessages = allMessages.concat(batch);
+          }
+          if (batch.length < PAGE_SIZE || allMessages.length >= SAFETY_LIMIT) {
+            break;
+          }
+          offset += PAGE_SIZE;
+        }
+        allMessages.sort((a, b) => a.timestamp - b.timestamp);
+        console.log(`[Client] batchGenerateTodos group ${chatName} fetched total ${allMessages.length} messages from last ${hours} hour(s)`);
 
-        if (recentMessages.length === 0) {
+        if (allMessages.length === 0) {
+          groupsNoMessages++;
           if (!isAuto) {
             const percent = ((i + 1) / groupIds.length) * 100;
             this.updateBatchProgress(percent, `完成: ${chatName} (无消息)`);
@@ -1152,10 +1258,11 @@ class WeChatAIApp {
           continue;
         }
 
-        const textMessages = recentMessages.filter(msg => msg.type === 'text');
+        const textMessages = allMessages.filter(msg => msg.type === 'text');
         console.log(`[Client] batchGenerateTodos group ${chatName} filtered to ${textMessages.length} text messages`);
 
         if (textMessages.length === 0) {
+          groupsNoText++;
           if (!isAuto) {
             const percent = ((i + 1) / groupIds.length) * 100;
             this.updateBatchProgress(percent, `完成: ${chatName} (无文本消息)`);
@@ -1163,11 +1270,13 @@ class WeChatAIApp {
           continue;
         }
 
+        groupsAIRequested++;
         const newTodos = await this.api('/api/todos/generate-from-chat', {
           method: 'POST',
           body: JSON.stringify({
             messages: textMessages,
-            chatName: chatName
+            chatName: chatName,
+            confidenceThreshold: this.leadConfidenceThreshold
           })
         });
 
@@ -1176,6 +1285,8 @@ class WeChatAIApp {
           totalTodos += newTodos.length;
           this.renderTodos();
           this.updateDashboard();
+        } else {
+          groupsAIEmpty++;
         }
 
         console.log(`[Client] batchGenerateTodos group ${chatName} created ${(Array.isArray(newTodos) ? newTodos.length : 0)} todos`);
@@ -1192,21 +1303,29 @@ class WeChatAIApp {
         setTimeout(() => this.toggleBatchProgress(false), 3000);
         
         if (totalTodos > 0) {
-          this.showToast(`批量提取完成，共生成 ${totalTodos} 条待办`, 'success');
+        this.showToast(`批量抓取完成，共生成 ${totalTodos} 条商机/资源类重要信息`, 'success');
         } else {
-          this.showToast('批量提取完成，未发现新的待办', 'info');
+        const parts = [];
+        if (groupsNoMessages > 0) parts.push(`无消息群${groupsNoMessages}`);
+        if (groupsNoText > 0) parts.push(`无文本群${groupsNoText}`);
+        if (groupsAIRequested > 0) parts.push(`已分析群${groupsAIRequested}`);
+        if (groupsAIError > 0) parts.push(`失败群${groupsAIError}`);
+        if (groupsAIEmpty > 0) parts.push(`无结果群${groupsAIEmpty}`);
+        const detail = parts.length > 0 ? `（${parts.join('，')}）` : '';
+        this.showToast(`批量抓取完成，未发现新的商机/资源类重要信息${detail}`, 'info');
         }
       } else {
         console.log(`[AutoBatch] Cycle completed. Generated ${totalTodos} todos.`);
         if (totalTodos > 0) {
-          this.showToast(`自动提取: 新增 ${totalTodos} 条待办`, 'success');
+          this.showToast(`自动抓取: 新增 ${totalTodos} 条商机/资源类重要信息`, 'success');
         }
       }
     } catch (error) {
       console.error('[Client] batchGenerateTodos error', error);
+      groupsAIError++;
       if (!isAuto) {
         this.toggleBatchProgress(false);
-        this.showToast('批量AI提取重要信息失败，请检查AI配置', 'error');
+        this.showToast(`批量商机智能抓取失败：${error.message || '请检查AI配置'}`, 'error');
       }
     }
 
@@ -1368,9 +1487,32 @@ class WeChatAIApp {
       messageLimitInput.value = this.messagePageLimit;
     }
 
+    const ollamaUrlInput = document.getElementById('ollama-url');
+    if (ollamaUrlInput) {
+      ollamaUrlInput.value = localStorage.getItem('aiOllamaUrl') || 'http://localhost:11434';
+    }
+
     const hoursInput = document.getElementById('ai-analysis-hours');
     if (hoursInput) {
       hoursInput.value = this.aiAnalysisHours;
+    }
+
+    const confidenceInput = document.getElementById('lead-confidence-threshold');
+    if (confidenceInput) {
+      confidenceInput.value = this.leadConfidenceThreshold;
+    }
+
+    try {
+      const storage = await this.api('/api/todos/storage');
+      const storageInput = document.getElementById('todo-storage-file');
+      if (storageInput && storage?.todoFile) {
+        storageInput.value = storage.todoFile;
+      }
+    } catch {
+      const storageInput = document.getElementById('todo-storage-file');
+      if (storageInput) {
+        storageInput.value = '';
+      }
     }
 
     const autoBatchIntervalInput = document.getElementById('auto-batch-interval-minutes');
@@ -1385,14 +1527,26 @@ class WeChatAIApp {
 
       try {
         const savedPrompt = localStorage.getItem('aiTodoPromptCategories');
+        const savedOllamaUrl = localStorage.getItem('aiOllamaUrl');
+        const savedModel = localStorage.getItem('aiPreferredModel');
+        const syncPayload = {};
+
+        if (savedOllamaUrl && savedOllamaUrl.trim()) {
+          syncPayload.ollamaUrl = savedOllamaUrl.trim();
+        }
+        if (savedModel && savedModel.trim() && savedModel !== status.model) {
+          syncPayload.model = savedModel.trim();
+        }
         if (savedPrompt && savedPrompt.trim() && savedPrompt !== status.todoPromptCategories) {
+          syncPayload.todoPromptCategories = savedPrompt;
+        }
+
+        if (Object.keys(syncPayload).length > 0) {
           await this.api('/api/ai/config', {
             method: 'POST',
-            body: JSON.stringify({
-              todoPromptCategories: savedPrompt
-            })
+            body: JSON.stringify(syncPayload)
           });
-          status.todoPromptCategories = savedPrompt;
+          status = await this.api('/api/ai/status');
         }
       } catch (e) {
         console.error('Failed to sync AI todo prompt categories from localStorage', e);
@@ -1453,10 +1607,11 @@ class WeChatAIApp {
       // Populate model selector
       const modelSelect = document.getElementById('ai-model');
       if (modelSelect && status.ollamaModels) {
+        const savedModel = localStorage.getItem('aiPreferredModel');
         const currentValue = modelSelect.value;
         modelSelect.innerHTML = '<option value="">自动选择</option>' +
           status.ollamaModels.map(m => `<option value="${m}">${m}</option>`).join('');
-        modelSelect.value = currentValue || status.model || '';
+        modelSelect.value = savedModel || currentValue || status.model || '';
       }
 
       const promptTextarea = document.getElementById('ai-todo-prompt');
@@ -1508,6 +1663,13 @@ class WeChatAIApp {
     const openaiKey = document.getElementById('openai-key').value.trim();
     const model = document.getElementById('ai-model').value;
     const todoPrompt = document.getElementById('ai-todo-prompt').value;
+    const confidenceInput = document.getElementById('lead-confidence-threshold');
+    const confidenceThreshold = confidenceInput ? parseFloat(confidenceInput.value) : this.leadConfidenceThreshold;
+
+    if (Number.isNaN(confidenceThreshold) || confidenceThreshold < 0.5 || confidenceThreshold > 0.95) {
+      this.showToast('最低抓取把握度请输入 0.50 到 0.95 之间的数字', 'warning');
+      return;
+    }
 
     if (todoPrompt && todoPrompt.trim()) {
       localStorage.setItem('aiTodoPromptCategories', todoPrompt);
@@ -1515,18 +1677,33 @@ class WeChatAIApp {
       localStorage.removeItem('aiTodoPromptCategories');
     }
 
+    if (ollamaUrl) {
+      localStorage.setItem('aiOllamaUrl', ollamaUrl);
+    } else {
+      localStorage.removeItem('aiOllamaUrl');
+    }
+
+    if (model) {
+      localStorage.setItem('aiPreferredModel', model);
+    } else {
+      localStorage.removeItem('aiPreferredModel');
+    }
+
+    this.leadConfidenceThreshold = confidenceThreshold;
+    localStorage.setItem('leadConfidenceThreshold', String(confidenceThreshold));
+
     try {
       await this.api('/api/ai/config', {
         method: 'POST',
         body: JSON.stringify({
-          ollamaUrl: ollamaUrl || undefined,
-          openaiKey: openaiKey || undefined,
-          model: model || undefined,
-          todoPromptCategories: todoPrompt || undefined
+          ollamaUrl,
+          openaiKey,
+          model,
+          todoPromptCategories: todoPrompt
         })
       });
       await this.checkAIStatus();
-      this.showToast('AI设置已保存', 'success');
+      this.showToast('AI抓取设置已保存', 'success');
     } catch {
       this.showToast('保存失败', 'error');
     }
@@ -1557,7 +1734,8 @@ class WeChatAIApp {
     const input = document.getElementById('message-limit');
     const hoursInput = document.getElementById('ai-analysis-hours');
     const autoBatchIntervalInput = document.getElementById('auto-batch-interval-minutes');
-    if (!input || !hoursInput || !autoBatchIntervalInput) return;
+    const confidenceInput = document.getElementById('lead-confidence-threshold');
+    if (!input || !hoursInput || !autoBatchIntervalInput || !confidenceInput) return;
 
     const value = parseInt(input.value, 10);
     if (Number.isNaN(value) || value <= 0 || value > 500) {
@@ -1581,14 +1759,22 @@ class WeChatAIApp {
       }
     }
 
+    const confidenceThreshold = parseFloat(confidenceInput.value);
+    if (Number.isNaN(confidenceThreshold) || confidenceThreshold < 0.5 || confidenceThreshold > 0.95) {
+      this.showToast('最低抓取把握度请输入 0.50 到 0.95 之间的数字', 'warning');
+      return;
+    }
+
     this.messagePageLimit = value;
     localStorage.setItem('messagePageLimit', String(value));
     this.aiAnalysisHours = hours;
     localStorage.setItem('aiAnalysisHours', String(hours));
+    this.leadConfidenceThreshold = confidenceThreshold;
+    localStorage.setItem('leadConfidenceThreshold', String(confidenceThreshold));
     this.autoBatchIntervalMinutes = autoIntervalMinutes || 0;
     this.saveBatchTodoSettings();
     this.startAutoBatchExtract();
-    this.showToast('消息与AI识别范围已保存', 'success');
+    this.showToast('显示与抓取设置已保存', 'success');
   }
 
   openTodoDetail(id) {

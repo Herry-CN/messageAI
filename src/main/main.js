@@ -150,7 +150,8 @@ async function startServer() {
       ...process.env, 
       PORT: SERVER_PORT,
       IS_PACKAGED: app.isPackaged ? 'true' : 'false',
-      APP_RESOURCES_PATH: process.resourcesPath
+      APP_RESOURCES_PATH: process.resourcesPath,
+      APP_USER_DATA_PATH: app.getPath('userData')
     }
   });
 
